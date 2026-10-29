@@ -9,7 +9,12 @@ export const DEFAULT_RADIUS_MILES = 10;
 const MAX_RESULTS = 100;
 const METERS_PER_MILE = 1609.344;
 
-const OVERPASS_URL = 'https://overpass-api.de/api/interpreter';
+// Public Overpass servers, tried in order (see wiki.openstreetmap.org/wiki/Overpass_API#Public_Overpass_API_instances).
+const OVERPASS_URLS = [
+  'https://overpass-api.de/api/interpreter',
+  'https://overpass.private.coffee/api/interpreter',
+  'https://maps.mail.ru/osm/tools/overpass/api/interpreter',
+];
 const NOMINATIM_URL = 'https://nominatim.openstreetmap.org/search';
 const APP_USER_AGENT = 'JesusChristApp/1.0 (+https://github.com/QunioSoyez/JesusChristApp)';
 
@@ -37,8 +42,39 @@ type OverpassElement = {
 
 export class SearchError extends Error {}
 
-// Browsers don't allow setting User-Agent; native apps should identify themselves to OSM services.
+// Nominatim requires apps to identify themselves. Browsers don't allow setting User-Agent, so web skips it.
 const osmHeaders = (): Record<string, string> => (Platform.OS === 'web' ? {} : { 'User-Agent': APP_USER_AGENT });
+
+/**
+ * Runs an Overpass query, trying each public server in turn. Public Overpass servers are often
+ * busy or slow, so a failure on one moves on to the next. The final error includes what went
+ * wrong on each server, which helps when diagnosing "can't reach" reports from a device.
+ */
+async function queryOverpass(query: string): Promise<{ elements?: OverpassElement[] }> {
+  const failures: string[] = [];
+  let busy = false;
+
+  for (const endpoint of OVERPASS_URLS) {
+    const host = new URL(endpoint).host;
+    try {
+      const res = await fetchWithTimeout(`${endpoint}?data=${encodeURIComponent(query)}`, {}, 20000);
+      if (res.ok) return (await res.json()) as { elements?: OverpassElement[] };
+      if (res.status === 429 || res.status === 504) busy = true;
+      failures.push(`${host}: HTTP ${res.status}`);
+    } catch (e) {
+      const reason = e instanceof Error && e.name === 'AbortError' ? 'timed out' : String((e as Error)?.message ?? e);
+      failures.push(`${host}: ${reason}`);
+    }
+  }
+
+  if (__DEV__) console.warn('Church search failed on every server:', failures);
+  const detail = `\n\nDetails: ${failures.join('; ')}`;
+  throw new SearchError(
+    busy
+      ? `The church directory is busy right now. Please try again in a minute.${detail}`
+      : `Could not reach the church directory. Check your connection and try again.${detail}`,
+  );
+}
 
 async function fetchWithTimeout(url: string, init: RequestInit = {}, ms = 30000): Promise<Response> {
   const controller = new AbortController();
@@ -57,22 +93,7 @@ export async function searchChurches(center: LatLon, radiusMiles: number): Promi
 nwr["amenity"="place_of_worship"]["religion"="christian"]["name"](around:${radius},${center.lat},${center.lon});
 out center tags;`;
 
-  let res: Response;
-  try {
-    res = await fetchWithTimeout(OVERPASS_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded', ...osmHeaders() },
-      body: `data=${encodeURIComponent(query)}`,
-    });
-  } catch {
-    throw new SearchError('Could not reach the church directory. Check your connection and try again.');
-  }
-  if (res.status === 429 || res.status === 504) {
-    throw new SearchError('The church directory is busy right now. Please try again in a minute.');
-  }
-  if (!res.ok) throw new SearchError(`Church search failed (error ${res.status}).`);
-
-  const data = (await res.json()) as { elements?: OverpassElement[] };
+  const data = await queryOverpass(query);
   const churches = (data.elements ?? [])
     .map((el) => toChurch(el, center))
     .filter((c): c is Church => c !== null)

@@ -1,6 +1,7 @@
-import { router } from 'expo-router';
-import { useState } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
+import { type Href, router } from 'expo-router';
+import { type ComponentProps, useState } from 'react';
+import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { Cross } from '@/components/cross';
@@ -8,38 +9,45 @@ import { Tappable } from '@/components/tappable';
 import { Colors, Fonts, MaxContentWidth, Spacing } from '@/constants/theme';
 import { randomQuote, TRANSLATION } from '@/lib/bible';
 
+type IconName = ComponentProps<typeof MaterialCommunityIcons>['name'];
+
+const NAV: { label: string; a11y: string; icon: IconName; href: Href }[] = [
+  { label: 'Scripture', a11y: 'Jesus in Scripture', icon: 'cross', href: '/references' },
+  { label: 'Bible', a11y: 'Read the Bible', icon: 'book-open-variant', href: '/bible' },
+  { label: 'Churches', a11y: 'Find a Church', icon: 'church', href: '/churches' },
+];
+
 export default function HomeScreen() {
   const [quote, setQuote] = useState(() => randomQuote());
 
   return (
-    <SafeAreaView style={styles.safe}>
-      <View style={styles.container}>
-        <View style={styles.hero}>
-          <Cross size={140} />
+    <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
+      {/* Scrolls only when a long verse doesn't fit, so nothing gets cut off. */}
+      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+        <Cross size={110} />
 
+        <Tappable onPress={() => setQuote((q) => randomQuote(q))} accessibilityHint="Shows another verse" style={styles.quote}>
+          <Text style={styles.quoteText}>“{quote.t}”</Text>
+          <Text style={styles.quoteRef}>
+            {quote.ref} ({TRANSLATION})
+          </Text>
+          <Text style={styles.tapHint}>Tap for another verse</Text>
+        </Tappable>
+      </ScrollView>
+
+      <View style={styles.nav}>
+        {NAV.map((item) => (
           <Tappable
-            onPress={() => setQuote((q) => randomQuote(q))}
-            accessibilityHint="Shows another verse"
-            style={styles.quote}>
-            <Text style={styles.quoteText}>“{quote.t}”</Text>
-            <Text style={styles.quoteRef}>
-              {quote.ref} ({TRANSLATION})
-            </Text>
-            <Text style={styles.tapHint}>Tap for another verse</Text>
+            key={item.label}
+            onPress={() => router.push(item.href)}
+            accessibilityLabel={item.a11y}
+            style={styles.navItem}>
+            <View style={styles.circle}>
+              <MaterialCommunityIcons name={item.icon} size={26} color={Colors.text} />
+            </View>
+            <Text style={styles.navLabel}>{item.label}</Text>
           </Tappable>
-        </View>
-
-        <View style={styles.actions}>
-          <Tappable onPress={() => router.push('/references')} style={[styles.button, styles.buttonPrimary]}>
-            <Text style={[styles.buttonText, styles.buttonTextPrimary]}>Jesus in Scripture</Text>
-          </Tappable>
-          <Tappable onPress={() => router.push('/bible')} style={styles.button}>
-            <Text style={styles.buttonText}>Read the Bible</Text>
-          </Tappable>
-          <Tappable onPress={() => router.push('/churches')} style={styles.button}>
-            <Text style={styles.buttonText}>Find a Church</Text>
-          </Tappable>
-        </View>
+        ))}
       </View>
     </SafeAreaView>
   );
@@ -47,16 +55,17 @@ export default function HomeScreen() {
 
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: Colors.background },
-  container: {
-    flex: 1,
+  scrollContent: {
+    flexGrow: 1,
     width: '100%',
     maxWidth: MaxContentWidth,
     alignSelf: 'center',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: Spacing.five,
     paddingHorizontal: Spacing.four,
-    paddingVertical: Spacing.five,
-    justifyContent: 'space-between',
+    paddingVertical: Spacing.four,
   },
-  hero: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: Spacing.five },
   quote: { alignItems: 'center', paddingHorizontal: Spacing.two, gap: Spacing.three },
   quoteText: {
     color: Colors.text,
@@ -67,15 +76,22 @@ const styles = StyleSheet.create({
   },
   quoteRef: { color: Colors.textSecondary, fontSize: 15, letterSpacing: 0.5 },
   tapHint: { color: Colors.textMuted, fontSize: 12 },
-  actions: { gap: Spacing.three },
-  button: {
-    borderWidth: 1,
-    borderColor: Colors.text,
-    borderRadius: 999,
-    paddingVertical: Spacing.three,
-    alignItems: 'center',
+  nav: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: Spacing.five,
+    paddingTop: Spacing.three,
+    paddingBottom: Spacing.three,
   },
-  buttonPrimary: { backgroundColor: Colors.text },
-  buttonText: { color: Colors.text, fontSize: 17, fontWeight: '600' },
-  buttonTextPrimary: { color: Colors.background },
+  navItem: { alignItems: 'center', gap: 6 },
+  circle: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    borderWidth: 1.5,
+    borderColor: Colors.text,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  navLabel: { color: Colors.textSecondary, fontSize: 12, letterSpacing: 0.3 },
 });
