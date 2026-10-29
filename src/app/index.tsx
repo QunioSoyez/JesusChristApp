@@ -15,6 +15,7 @@ const NAV: { label: string; a11y: string; icon: IconName; href: Href }[] = [
   { label: 'Scripture', a11y: 'Jesus in Scripture', icon: 'cross', href: '/references' },
   { label: 'Bible', a11y: 'Read the Bible', icon: 'book-open-variant', href: '/bible' },
   { label: 'Churches', a11y: 'Find a Church', icon: 'church', href: '/churches' },
+  { label: 'Next Steps', a11y: 'Next steps: questions, prayer lines and resources', icon: 'hand-heart-outline', href: '/next-steps' },
 ];
 
 export default function HomeScreen() {
@@ -79,7 +80,7 @@ const styles = StyleSheet.create({
   nav: {
     flexDirection: 'row',
     justifyContent: 'center',
-    gap: Spacing.five,
+    gap: Spacing.four,
     paddingTop: Spacing.three,
     paddingBottom: Spacing.three,
   },
