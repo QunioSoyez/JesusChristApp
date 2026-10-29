@@ -1,0 +1,310 @@
+[
+ {
+  "b": "john",
+  "c": 3,
+  "v": 16,
+  "ref": "John 3:16",
+  "t": "For God so loved the world, that he gave his only begotten Son, that whosoever believeth in him should not perish, but have everlasting life."
+ },
+ {
+  "b": "john",
+  "c": 14,
+  "v": 27,
+  "ref": "John 14:27",
+  "t": "Peace I leave with you, my peace I give unto you: not as the world giveth, give I unto you. Let not your heart be troubled, neither let it be afraid."
+ },
+ {
+  "b": "john",
+  "c": 16,
+  "v": 33,
+  "ref": "John 16:33",
+  "t": "These things I have spoken unto you, that in me ye might have peace. In the world ye shall have tribulation: but be of good cheer; I have overcome the world."
+ },
+ {
+  "b": "john",
+  "c": 8,
+  "v": 12,
+  "ref": "John 8:12",
+  "t": "Then spake Jesus again unto them, saying, I am the light of the world: he that followeth me shall not walk in darkness, but shall have the light of life."
+ },
+ {
+  "b": "john",
+  "c": 10,
+  "v": 10,
+  "ref": "John 10:10",
+  "t": "The thief cometh not, but for to steal, and to kill, and to destroy: I am come that they might have life, and that they might have it more abundantly."
+ },
+ {
+  "b": "john",
+  "c": 11,
+  "v": 25,
+  "ref": "John 11:25",
+  "t": "Jesus said unto her, I am the resurrection, and the life: he that believeth in me, though he were dead, yet shall he live:"
+ },
+ {
+  "b": "john",
+  "c": 14,
+  "v": 6,
+  "ref": "John 14:6",
+  "t": "Jesus saith unto him, I am the way, the truth, and the life: no man cometh unto the Father, but by me."
+ },
+ {
+  "b": "john",
+  "c": 15,
+  "v": 13,
+  "ref": "John 15:13",
+  "t": "Greater love hath no man than this, that a man lay down his life for his friends."
+ },
+ {
+  "b": "matthew",
+  "c": 11,
+  "v": 28,
+  "ref": "Matthew 11:28–29",
+  "t": "Come unto me, all ye that labour and are heavy laden, and I will give you rest. Take my yoke upon you, and learn of me; for I am meek and lowly in heart: and ye shall find rest unto your souls."
+ },
+ {
+  "b": "matthew",
+  "c": 5,
+  "v": 14,
+  "ref": "Matthew 5:14",
+  "t": "Ye are the light of the world. A city that is set on an hill cannot be hid."
+ },
+ {
+  "b": "matthew",
+  "c": 28,
+  "v": 20,
+  "ref": "Matthew 28:20",
+  "t": "Teaching them to observe all things whatsoever I have commanded you: and, lo, I am with you alway, even unto the end of the world. Amen."
+ },
+ {
+  "b": "matthew",
+  "c": 6,
+  "v": 33,
+  "ref": "Matthew 6:33",
+  "t": "But seek ye first the kingdom of God, and his righteousness; and all these things shall be added unto you."
+ },
+ {
+  "b": "matthew",
+  "c": 19,
+  "v": 26,
+  "ref": "Matthew 19:26",
+  "t": "But Jesus beheld them, and said unto them, With men this is impossible; but with God all things are possible."
+ },
+ {
+  "b": "matthew",
+  "c": 7,
+  "v": 7,
+  "ref": "Matthew 7:7",
+  "t": "Ask, and it shall be given you; seek, and ye shall find; knock, and it shall be opened unto you:"
+ },
+ {
+  "b": "psalms",
+  "c": 23,
+  "v": 1,
+  "ref": "Psalms 23:1",
+  "t": "The Lord is my shepherd; I shall not want."
+ },
+ {
+  "b": "psalms",
+  "c": 46,
+  "v": 1,
+  "ref": "Psalms 46:1",
+  "t": "God is our refuge and strength, a very present help in trouble."
+ },
+ {
+  "b": "psalms",
+  "c": 27,
+  "v": 1,
+  "ref": "Psalms 27:1",
+  "t": "The Lord is my light and my salvation; whom shall I fear? the Lord is the strength of my life; of whom shall I be afraid?"
+ },
+ {
+  "b": "psalms",
+  "c": 118,
+  "v": 24,
+  "ref": "Psalms 118:24",
+  "t": "This is the day which the Lord hath made; we will rejoice and be glad in it."
+ },
+ {
+  "b": "psalms",
+  "c": 119,
+  "v": 105,
+  "ref": "Psalms 119:105",
+  "t": "Thy word is a lamp unto my feet, and a light unto my path."
+ },
+ {
+  "b": "psalms",
+  "c": 34,
+  "v": 18,
+  "ref": "Psalms 34:18",
+  "t": "The Lord is nigh unto them that are of a broken heart; and saveth such as be of a contrite spirit."
+ },
+ {
+  "b": "psalms",
+  "c": 30,
+  "v": 5,
+  "ref": "Psalms 30:5",
+  "t": "For his anger endureth but a moment; in his favour is life: weeping may endure for a night, but joy cometh in the morning."
+ },
+ {
+  "b": "proverbs",
+  "c": 3,
+  "v": 5,
+  "ref": "Proverbs 3:5–6",
+  "t": "Trust in the Lord with all thine heart; and lean not unto thine own understanding. In all thy ways acknowledge him, and he shall direct thy paths."
+ },
+ {
+  "b": "isaiah",
+  "c": 40,
+  "v": 31,
+  "ref": "Isaiah 40:31",
+  "t": "But they that wait upon the Lord shall renew their strength; they shall mount up with wings as eagles; they shall run, and not be weary; and they shall walk, and not faint."
+ },
+ {
+  "b": "isaiah",
+  "c": 41,
+  "v": 10,
+  "ref": "Isaiah 41:10",
+  "t": "Fear thou not; for I am with thee: be not dismayed; for I am thy God: I will strengthen thee; yea, I will help thee; yea, I will uphold thee with the right hand of my righteousness."
+ },
+ {
+  "b": "isaiah",
+  "c": 9,
+  "v": 6,
+  "ref": "Isaiah 9:6",
+  "t": "For unto us a child is born, unto us a son is given: and the government shall be upon his shoulder: and his name shall be called Wonderful, Counsellor, The mighty God, The everlasting Father, The Prince of Peace."
+ },
+ {
+  "b": "jeremiah",
+  "c": 29,
+  "v": 11,
+  "ref": "Jeremiah 29:11",
+  "t": "For I know the thoughts that I think toward you, saith the Lord, thoughts of peace, and not of evil, to give you an expected end."
+ },
+ {
+  "b": "lamentations",
+  "c": 3,
+  "v": 22,
+  "ref": "Lamentations 3:22–23",
+  "t": "It is of the Lord’s mercies that we are not consumed, because his compassions fail not. They are new every morning: great is thy faithfulness."
+ },
+ {
+  "b": "joshua",
+  "c": 1,
+  "v": 9,
+  "ref": "Joshua 1:9",
+  "t": "Have not I commanded thee? Be strong and of a good courage; be not afraid, neither be thou dismayed: for the Lord thy God is with thee whithersoever thou goest."
+ },
+ {
+  "b": "romans",
+  "c": 8,
+  "v": 28,
+  "ref": "Romans 8:28",
+  "t": "And we know that all things work together for good to them that love God, to them who are the called according to his purpose."
+ },
+ {
+  "b": "romans",
+  "c": 8,
+  "v": 38,
+  "ref": "Romans 8:38–39",
+  "t": "For I am persuaded, that neither death, nor life, nor angels, nor principalities, nor powers, nor things present, nor things to come, Nor height, nor depth, nor any other creature, shall be able to separate us from the love of God, which is in Christ Jesus our Lord."
+ },
+ {
+  "b": "romans",
+  "c": 15,
+  "v": 13,
+  "ref": "Romans 15:13",
+  "t": "Now the God of hope fill you with all joy and peace in believing, that ye may abound in hope, through the power of the Holy Ghost."
+ },
+ {
+  "b": "romans",
+  "c": 5,
+  "v": 8,
+  "ref": "Romans 5:8",
+  "t": "But God commendeth his love toward us, in that, while we were yet sinners, Christ died for us."
+ },
+ {
+  "b": "2-corinthians",
+  "c": 5,
+  "v": 17,
+  "ref": "2 Corinthians 5:17",
+  "t": "Therefore if any man be in Christ, he is a new creature: old things are passed away; behold, all things are become new."
+ },
+ {
+  "b": "2-corinthians",
+  "c": 12,
+  "v": 9,
+  "ref": "2 Corinthians 12:9",
+  "t": "And he said unto me, My grace is sufficient for thee: for my strength is made perfect in weakness. Most gladly therefore will I rather glory in my infirmities, that the power of Christ may rest upon me."
+ },
+ {
+  "b": "philippians",
+  "c": 4,
+  "v": 13,
+  "ref": "Philippians 4:13",
+  "t": "I can do all things through Christ which strengtheneth me."
+ },
+ {
+  "b": "philippians",
+  "c": 4,
+  "v": 6,
+  "ref": "Philippians 4:6–7",
+  "t": "Be careful for nothing; but in every thing by prayer and supplication with thanksgiving let your requests be made known unto God. And the peace of God, which passeth all understanding, shall keep your hearts and minds through Christ Jesus."
+ },
+ {
+  "b": "galatians",
+  "c": 2,
+  "v": 20,
+  "ref": "Galatians 2:20",
+  "t": "I am crucified with Christ: nevertheless I live; yet not I, but Christ liveth in me: and the life which I now live in the flesh I live by the faith of the Son of God, who loved me, and gave himself for me."
+ },
+ {
+  "b": "ephesians",
+  "c": 2,
+  "v": 8,
+  "ref": "Ephesians 2:8",
+  "t": "For by grace are ye saved through faith; and that not of yourselves: it is the gift of God:"
+ },
+ {
+  "b": "hebrews",
+  "c": 13,
+  "v": 8,
+  "ref": "Hebrews 13:8",
+  "t": "Jesus Christ the same yesterday, and to day, and for ever."
+ },
+ {
+  "b": "1-john",
+  "c": 4,
+  "v": 19,
+  "ref": "1 John 4:19",
+  "t": "We love him, because he first loved us."
+ },
+ {
+  "b": "1-john",
+  "c": 1,
+  "v": 9,
+  "ref": "1 John 1:9",
+  "t": "If we confess our sins, he is faithful and just to forgive us our sins, and to cleanse us from all unrighteousness."
+ },
+ {
+  "b": "1-peter",
+  "c": 5,
+  "v": 7,
+  "ref": "1 Peter 5:7",
+  "t": "Casting all your care upon him; for he careth for you."
+ },
+ {
+  "b": "revelation",
+  "c": 21,
+  "v": 4,
+  "ref": "Revelation 21:4",
+  "t": "And God shall wipe away all tears from their eyes; and there shall be no more death, neither sorrow, nor crying, neither shall there be any more pain: for the former things are passed away."
+ },
+ {
+  "b": "revelation",
+  "c": 3,
+  "v": 20,
+  "ref": "Revelation 3:20",
+  "t": "Behold, I stand at the door, and knock: if any man hear my voice, and open the door, I will come in to him, and will sup with him, and he with me."
+ }
+]
