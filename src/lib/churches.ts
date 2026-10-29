@@ -12,9 +12,12 @@ const METERS_PER_MILE = 1609.344;
 // Public Overpass servers, tried in order (see wiki.openstreetmap.org/wiki/Overpass_API#Public_Overpass_API_instances).
 const OVERPASS_URLS = [
   'https://overpass-api.de/api/interpreter',
-  'https://overpass.private.coffee/api/interpreter',
   'https://maps.mail.ru/osm/tools/overpass/api/interpreter',
+  'https://overpass.private.coffee/api/interpreter',
 ];
+// Temporary server errors worth one retry on the same server before moving on.
+const RETRYABLE_STATUS = new Set([429, 502, 503, 504]);
+const OVERPASS_TIMEOUT_MS = 15000;
 const NOMINATIM_URL = 'https://nominatim.openstreetmap.org/search';
 const APP_USER_AGENT = 'JesusChristApp/1.0 (+https://github.com/QunioSoyez/JesusChristApp)';
 
@@ -42,7 +45,9 @@ type OverpassElement = {
 
 export class SearchError extends Error {}
 
-// Nominatim requires apps to identify themselves. Browsers don't allow setting User-Agent, so web skips it.
+// OSM services require apps to identify themselves: overpass-api.de answers generic User-Agents
+// (curl, Android's okhttp) with 406 Not Acceptable. Browsers don't allow setting User-Agent and
+// already send a normal browser one, so web skips it.
 const osmHeaders = (): Record<string, string> => (Platform.OS === 'web' ? {} : { 'User-Agent': APP_USER_AGENT });
 
 /**
@@ -54,12 +59,19 @@ async function queryOverpass(query: string): Promise<{ elements?: OverpassElemen
   const failures: string[] = [];
   let busy = false;
 
+  const url = (endpoint: string) => `${endpoint}?data=${encodeURIComponent(query)}`;
+  const init: RequestInit = { headers: { Accept: 'application/json', ...osmHeaders() } };
+
   for (const endpoint of OVERPASS_URLS) {
     const host = new URL(endpoint).host;
     try {
-      const res = await fetchWithTimeout(`${endpoint}?data=${encodeURIComponent(query)}`, {}, 20000);
+      let res = await fetchWithTimeout(url(endpoint), init, OVERPASS_TIMEOUT_MS);
+      if (RETRYABLE_STATUS.has(res.status)) {
+        await new Promise((r) => setTimeout(r, 1500));
+        res = await fetchWithTimeout(url(endpoint), init, OVERPASS_TIMEOUT_MS);
+      }
       if (res.ok) return (await res.json()) as { elements?: OverpassElement[] };
-      if (res.status === 429 || res.status === 504) busy = true;
+      if (RETRYABLE_STATUS.has(res.status)) busy = true;
       failures.push(`${host}: HTTP ${res.status}`);
     } catch (e) {
       const reason = e instanceof Error && e.name === 'AbortError' ? 'timed out' : String((e as Error)?.message ?? e);
