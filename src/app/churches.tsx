@@ -1,6 +1,6 @@
 import * as Location from 'expo-location';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, FlatList, Linking, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, FlatList, Linking, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { ChurchMap } from '@/components/church-map';
 import { Tappable } from '@/components/tappable';
@@ -8,10 +8,13 @@ import { Colors, MaxContentWidth, Spacing } from '@/constants/theme';
 import {
   type Church,
   DEFAULT_RADIUS_MILES,
+  DENOMINATIONS,
+  type DenominationFilter,
   directionsUrl,
   formatMiles,
   geocode,
   type LatLon,
+  matchesDenomination,
   RADIUS_OPTIONS_MILES,
   SearchError,
   searchChurches,
@@ -26,6 +29,7 @@ export default function ChurchesScreen() {
   const [status, setStatus] = useState<Status>('locating');
   const [message, setMessage] = useState<string | null>(null);
   const [churches, setChurches] = useState<Church[]>([]);
+  const [denomFilter, setDenomFilter] = useState<DenominationFilter>('All');
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [place, setPlace] = useState('');
   const listRef = useRef<FlatList<Church>>(null);
@@ -93,27 +97,42 @@ export default function ChurchesScreen() {
     }
   };
 
+  const filteredChurches = useMemo(
+    () => churches.filter((c) => matchesDenomination(c, denomFilter)),
+    [churches, denomFilter],
+  );
+
   const openDirections = useCallback(
     (id: string) => {
-      const church = churches.find((c) => c.id === id);
+      const church = filteredChurches.find((c) => c.id === id);
       if (church) Linking.openURL(directionsUrl(church));
     },
-    [churches],
+    [filteredChurches],
   );
 
   // Tapping a pin on the map highlights and scrolls to that church in the list.
   const selectFromMap = useCallback(
     (id: string) => {
       setSelectedId(id);
-      const index = churches.findIndex((c) => c.id === id);
+      const index = filteredChurches.findIndex((c) => c.id === id);
       if (index >= 0) listRef.current?.scrollToIndex({ index, viewPosition: 0, animated: true });
     },
-    [churches],
+    [filteredChurches],
   );
 
+  // Denomination filter: only offer chips for denominations actually in the results
+  // (plus All). Unknown churches are always kept visible when a filter is active.
+  const availableDenoms = useMemo<DenominationFilter[]>(() => {
+    const present = new Set(churches.map((c) => c.denomination));
+    return (DENOMINATIONS as readonly string[]).filter(
+      (d) => d === 'All' || present.has(d),
+    ) as DenominationFilter[];
+  }, [churches]);
+
   const mapChurches = useMemo<MapChurch[]>(
-    () => churches.map((c) => ({ id: c.id, name: c.name, lat: c.lat, lon: c.lon, distance: formatMiles(c.distanceMiles) })),
-    [churches],
+    () =>
+      filteredChurches.map((c) => ({ id: c.id, name: c.name, lat: c.lat, lon: c.lon, distance: formatMiles(c.distanceMiles) })),
+    [filteredChurches],
   );
 
   const busy = status === 'locating' || status === 'searching';
@@ -153,7 +172,30 @@ export default function ChurchesScreen() {
           ))}
         </View>
 
-        <StatusLine status={status} message={message} count={churches.length} label={center?.label} radius={radius} />
+        <View style={styles.radiusRow}>
+          <Text style={styles.radiusLabel}>Denomination</Text>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.denomScroll}>
+            {availableDenoms.map((d) => (
+              <Tappable
+                key={d}
+                onPress={() => setDenomFilter(d)}
+                accessibilityState={{ selected: denomFilter === d }}
+                accessibilityLabel={`Show ${d} churches`}
+                style={[styles.chip, denomFilter === d && styles.chipActive]}>
+                <Text style={[styles.chipText, denomFilter === d && styles.chipTextActive]}>{d}</Text>
+              </Tappable>
+            ))}
+          </ScrollView>
+        </View>
+
+        <StatusLine
+          status={status}
+          message={message}
+          count={filteredChurches.length}
+          label={center?.label}
+          radius={radius}
+          denom={denomFilter}
+        />
       </View>
 
       {center && (
@@ -171,7 +213,7 @@ export default function ChurchesScreen() {
 
       <FlatList
         ref={listRef}
-        data={churches}
+        data={filteredChurches}
         keyExtractor={(c) => c.id}
         contentContainerStyle={styles.list}
         onScrollToIndexFailed={({ index, averageItemLength }) =>
@@ -207,12 +249,14 @@ function StatusLine({
   count,
   label,
   radius,
+  denom,
 }: {
   status: Status;
   message: string | null;
   count: number;
   label?: string;
   radius: number;
+  denom?: DenominationFilter;
 }) {
   if (status === 'locating' || status === 'searching') {
     return (
@@ -224,11 +268,12 @@ function StatusLine({
   }
   if (message) return <Text style={[styles.status, status === 'error' && styles.statusError]}>{message}</Text>;
   if (status === 'ready') {
+    const denomLabel = denom && denom !== 'All' ? ` ${denom}` : '';
     return (
       <Text style={styles.status}>
         {count === 0
-          ? `No churches found within ${radius} miles of ${label}. Try a wider radius.`
-          : `${count} ${count === 1 ? 'church' : 'churches'} within ${radius} miles of ${label}`}
+          ? `No${denomLabel} churches found within ${radius} miles of ${label}. Try All or a wider radius.`
+          : `${count}${denomLabel} ${count === 1 ? 'church' : 'churches'} within ${radius} miles of ${label}`}
       </Text>
     );
   }
@@ -246,17 +291,21 @@ function ChurchRow({
   onPress: () => void;
   onDirections: () => void;
 }) {
-  const meta = [church.denomination, formatMiles(church.distanceMiles)].filter(Boolean).join(' · ');
+  const denomLabel = church.denomination === 'Unknown' ? 'Denomination unknown' : church.denomination;
+  const meta = [denomLabel, formatMiles(church.distanceMiles)].filter(Boolean).join(' · ');
 
   return (
     <Tappable onPress={onPress} style={[styles.row, selected && styles.rowSelected]}>
       <Text style={styles.name}>{church.name}</Text>
       <Text style={styles.meta}>{meta}</Text>
-      {church.address ? <Text style={styles.detail}>{church.address}</Text> : null}
+      {church.address ? <Text style={styles.detail}>Address: {church.address}</Text> : null}
+      {church.phone ? <Text style={styles.detail}>Phone: {church.phone}</Text> : null}
       {church.serviceTimes ? (
         <Text style={styles.detail}>Services: {church.serviceTimes}</Text>
       ) : church.website ? (
         <Text style={styles.detailMuted}>Check the website for service times</Text>
+      ) : church.phone ? (
+        <Text style={styles.detailMuted}>Call for service times</Text>
       ) : null}
 
       <View style={styles.actions}>
@@ -312,6 +361,7 @@ const styles = StyleSheet.create({
   smallButtonText: { color: Colors.text, fontSize: 14, fontWeight: '600' },
   radiusRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two },
   radiusLabel: { color: Colors.textSecondary, fontSize: 14 },
+  denomScroll: { flexDirection: 'row', gap: Spacing.two, paddingRight: Spacing.three },
   chip: { borderWidth: 1, borderColor: Colors.border, borderRadius: 999, paddingHorizontal: 12, paddingVertical: 5 },
   chipActive: { backgroundColor: Colors.text, borderColor: Colors.text },
   chipText: { color: Colors.textSecondary, fontSize: 14 },

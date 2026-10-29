@@ -29,13 +29,42 @@ export type LatLon = { lat: number; lon: number };
 export type Church = LatLon & {
   id: string;
   name: string;
-  denomination?: string;
+  denomination: string;
   address?: string;
   phone?: string;
   website?: string;
   serviceTimes?: string;
   distanceMiles: number;
 };
+
+// Fixed taxonomy for the denomination selector chips (mobile-friendly, ~16 items max).
+// 'All' = no filter. 'Unknown' = OSM had no denomination tag — always kept visible per owner decision.
+// "Jehovah's Witness" and "Latter-day Saints" are separate (not grouped under Other).
+export const DENOMINATIONS = [
+  'All',
+  'Baptist',
+  'Catholic',
+  'Methodist',
+  'Lutheran',
+  'Presbyterian',
+  'Pentecostal',
+  'Adventist',
+  'Anglican / Episcopal',
+  'Orthodox',
+  'Church of Christ',
+  "Jehovah's Witness",
+  'Latter-day Saints',
+  'Non-denominational',
+  'Other',
+  'Unknown',
+] as const;
+
+export type DenominationFilter = (typeof DENOMINATIONS)[number];
+
+// Optional Cloudflare Worker proxy (see /church-finder-worker). When
+// EXPO_PUBLIC_CHURCH_WORKER_URL is set, the app uses it instead of calling
+// public Overpass servers directly — it adds server-side caching + retries.
+const WORKER_URL = process.env.EXPO_PUBLIC_CHURCH_WORKER_URL?.replace(/\/$/, '');
 
 type OverpassElement = {
   type: 'node' | 'way' | 'relation';
@@ -148,6 +177,23 @@ async function fetchWithTimeout(url: string, init: RequestInit = {}, ms = 30000,
 
 /** Finds named Christian places of worship within `radiusMiles`, nearest first. */
 export async function searchChurches(center: LatLon, radiusMiles: number): Promise<Church[]> {
+  // 1) Preferred path: Cloudflare Worker proxy (cached, retried server-side).
+  if (WORKER_URL) {
+    try {
+      const url = `${WORKER_URL}/churches?lat=${center.lat}&lon=${center.lon}&radiusMi=${radiusMiles}`;
+      const res = await fetchWithTimeout(url, { headers: { Accept: 'application/json' } }, 25000);
+      if (res.ok) {
+        const data = (await res.json()) as { churches?: Church[] };
+        if (Array.isArray(data.churches)) return data.churches.slice(0, MAX_RESULTS);
+      }
+      // Non-OK from worker: fall through to direct Overpass below.
+      if (__DEV__) console.warn('Church worker non-OK, falling back to direct Overpass:', res.status);
+    } catch (e) {
+      if (__DEV__) console.warn('Church worker failed, falling back to direct Overpass:', e);
+      // Fall through — direct Overpass is the offline fallback.
+    }
+  }
+
   const radius = Math.round(radiusMiles * METERS_PER_MILE);
   const query = `[out:json][timeout:25];
 nwr["amenity"="place_of_worship"]["religion"="christian"]["name"](around:${radius},${center.lat},${center.lon});
@@ -164,6 +210,21 @@ out center tags;`;
 
 /** Turns a city, address or ZIP code into coordinates. Returns null if nothing matched. */
 export async function geocode(place: string): Promise<(LatLon & { label: string }) | null> {
+  if (WORKER_URL) {
+    try {
+      const url = `${WORKER_URL}/geocode?q=${encodeURIComponent(place.trim())}`;
+      const res = await fetchWithTimeout(url, { headers: { Accept: 'application/json' } }, 15000);
+      if (res.ok) {
+        const data = (await res.json()) as { lat?: number; lon?: number; label?: string } | null;
+        if (data && typeof data.lat === 'number' && typeof data.lon === 'number') {
+          return { lat: data.lat, lon: data.lon, label: data.label ?? shortLabel(place) };
+        }
+        return null;
+      }
+    } catch {
+      // Fall through to direct Nominatim below.
+    }
+  }
   const url = `${NOMINATIM_URL}?format=json&limit=1&q=${encodeURIComponent(place.trim())}`;
   let res: Response;
   try {
@@ -200,7 +261,7 @@ function toChurch(el: OverpassElement, from: LatLon): Church | null {
     name: tags.name,
     lat,
     lon,
-    denomination: prettyDenomination(tags.denomination),
+    denomination: normalizeDenomination(tags.denomination),
     address: formatAddress(tags),
     phone: tags.phone ?? tags['contact:phone'],
     website: normalizeUrl(tags.website ?? tags['contact:website'] ?? tags.url),
@@ -219,7 +280,8 @@ function dedupe(list: Church[]): Church[] {
       dup.website ??= c.website;
       dup.serviceTimes ??= c.serviceTimes;
       dup.address ??= c.address;
-      dup.denomination ??= c.denomination;
+      // Prefer a known denomination over Unknown/Other when merging duplicates.
+      if (dup.denomination === 'Unknown' || dup.denomination === 'Other') dup.denomination = c.denomination;
     } else {
       seen.push(c);
     }
@@ -235,13 +297,77 @@ function formatAddress(tags: Record<string, string>): string | undefined {
   return [street, cityLine].filter(Boolean).join(', ') || undefined;
 }
 
-function prettyDenomination(value?: string): string | undefined {
-  if (!value) return undefined;
-  return value
-    .split(/[_;]/)
-    .filter(Boolean)
-    .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
-    .join(' ');
+const DENOM_MAP: Record<string, Exclude<DenominationFilter, 'All' | 'Unknown' | 'Other'>> = {
+  catholic: 'Catholic',
+  roman_catholic: 'Catholic',
+  baptist: 'Baptist',
+  southern_baptist: 'Baptist',
+  american_baptist: 'Baptist',
+  independent_baptist: 'Baptist',
+  methodist: 'Methodist',
+  united_methodist: 'Methodist',
+  african_methodist_episcopal: 'Methodist',
+  lutheran: 'Lutheran',
+  evangelical_lutheran: 'Lutheran',
+  missouri_synod: 'Lutheran',
+  presbyterian: 'Presbyterian',
+  presbyterian_usa: 'Presbyterian',
+  pentecostal: 'Pentecostal',
+  assemblies_of_god: 'Pentecostal',
+  church_of_god_in_christ: 'Pentecostal',
+  foursquare: 'Pentecostal',
+  adventist: 'Adventist',
+  seventh_day_adventist: 'Adventist',
+  anglican: 'Anglican / Episcopal',
+  episcopal: 'Anglican / Episcopal',
+  church_of_england: 'Anglican / Episcopal',
+  orthodox: 'Orthodox',
+  greek_orthodox: 'Orthodox',
+  russian_orthodox: 'Orthodox',
+  eastern_orthodox: 'Orthodox',
+  church_of_christ: 'Church of Christ',
+  christian_church: 'Church of Christ',
+  disciples_of_christ: 'Church of Christ',
+  jehovahs_witness: "Jehovah's Witness",
+  jehovah_witness: "Jehovah's Witness",
+  latter_day_saints: 'Latter-day Saints',
+  mormon: 'Latter-day Saints',
+  lds: 'Latter-day Saints',
+  church_of_jesus_christ_of_latter_day_saints: 'Latter-day Saints',
+  nondenominational: 'Non-denominational',
+  non_denominational: 'Non-denominational',
+  independent: 'Non-denominational',
+  evangelical: 'Non-denominational',
+  evangelical_free: 'Non-denominational',
+  community: 'Non-denominational',
+  bible: 'Non-denominational',
+};
+
+/** Maps messy OSM denomination tags to the fixed DENOMINATIONS taxonomy. Missing -> 'Unknown', unrecognized -> 'Other'. */
+export function normalizeDenomination(value?: string): Exclude<DenominationFilter, 'All'> {
+  if (!value) return 'Unknown';
+  const parts = value
+    .toLowerCase()
+    .split(/[;,\/]/)
+    .map((s) => s.trim().replace(/[\s-]+/g, '_'))
+    .filter(Boolean);
+  for (const p of parts) {
+    if (DENOM_MAP[p]) return DENOM_MAP[p];
+    for (const key of Object.keys(DENOM_MAP)) {
+      if (p.includes(key)) return DENOM_MAP[key as keyof typeof DENOM_MAP];
+    }
+  }
+  // Beautified fallback counts as Other (had a tag, just not in taxonomy).
+  return 'Other';
+}
+
+/** Returns true if a church passes the denomination filter. Unknown is always kept visible. */
+export function matchesDenomination(church: Church, filter: DenominationFilter): boolean {
+  if (filter === 'All') return true;
+  if (church.denomination === filter) return true;
+  // Per owner decision: never hide Unknown — better to show than hide.
+  if (church.denomination === 'Unknown') return true;
+  return false;
 }
 
 const DAYS: Record<string, string> = { Mo: 'Mon', Tu: 'Tue', We: 'Wed', Th: 'Thu', Fr: 'Fri', Sa: 'Sat', Su: 'Sun' };
