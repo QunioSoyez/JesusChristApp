@@ -36,6 +36,9 @@ export default function HomeScreen() {
           <Tappable onPress={() => router.push('/bible')} style={styles.button}>
             <Text style={styles.buttonText}>Read the Bible</Text>
           </Tappable>
+          <Tappable onPress={() => router.push('/churches')} style={styles.button}>
+            <Text style={styles.buttonText}>Find a Church</Text>
+          </Tappable>
         </View>
       </View>
     </SafeAreaView>
