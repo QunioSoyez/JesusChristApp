@@ -15,9 +15,12 @@ const OVERPASS_URLS = [
   'https://maps.mail.ru/osm/tools/overpass/api/interpreter',
   'https://overpass.private.coffee/api/interpreter',
 ];
-// Temporary server errors worth one retry on the same server before moving on.
+// Temporary server errors worth one retry on the same server.
 const RETRYABLE_STATUS = new Set([429, 502, 503, 504]);
-const OVERPASS_TIMEOUT_MS = 15000;
+// Each server gets up to 30s (the query itself asks the server to stop after 25s).
+const OVERPASS_TIMEOUT_MS = 30000;
+// If a server hasn't answered after this long, also ask the next one; the first good answer wins.
+const OVERPASS_HEDGE_MS = 6000;
 const NOMINATIM_URL = 'https://nominatim.openstreetmap.org/search';
 const APP_USER_AGENT = 'JesusChristApp/1.0 (+https://github.com/QunioSoyez/JesusChristApp)';
 
@@ -51,50 +54,95 @@ export class SearchError extends Error {}
 const osmHeaders = (): Record<string, string> => (Platform.OS === 'web' ? {} : { 'User-Agent': APP_USER_AGENT });
 
 /**
- * Runs an Overpass query, trying each public server in turn. Public Overpass servers are often
- * busy or slow, so a failure on one moves on to the next. The final error includes what went
- * wrong on each server, which helps when diagnosing "can't reach" reports from a device.
+ * Runs an Overpass query against the public servers in OVERPASS_URLS. Public servers are often busy,
+ * so requests overlap: the first server is asked right away, the next one OVERPASS_HEDGE_MS later
+ * (or as soon as an earlier one fails), and so on. The first good answer wins and the rest are
+ * cancelled. If all fail, the error lists what happened on each server.
  */
 async function queryOverpass(query: string): Promise<{ elements?: OverpassElement[] }> {
+  const init: RequestInit = { headers: { Accept: 'application/json', ...osmHeaders() } };
+  const url = (endpoint: string) => `${endpoint}?data=${encodeURIComponent(query)}`;
+  const done = new AbortController(); // aborted once we have an answer, cancelling the others
   const failures: string[] = [];
   let busy = false;
 
-  const url = (endpoint: string) => `${endpoint}?data=${encodeURIComponent(query)}`;
-  const init: RequestInit = { headers: { Accept: 'application/json', ...osmHeaders() } };
-
-  for (const endpoint of OVERPASS_URLS) {
+  const attempt = async (endpoint: string): Promise<{ elements?: OverpassElement[] }> => {
     const host = new URL(endpoint).host;
     try {
-      let res = await fetchWithTimeout(url(endpoint), init, OVERPASS_TIMEOUT_MS);
-      if (RETRYABLE_STATUS.has(res.status)) {
+      let res = await fetchWithTimeout(url(endpoint), init, OVERPASS_TIMEOUT_MS, done.signal);
+      if (RETRYABLE_STATUS.has(res.status) && !done.signal.aborted) {
         await new Promise((r) => setTimeout(r, 1500));
-        res = await fetchWithTimeout(url(endpoint), init, OVERPASS_TIMEOUT_MS);
+        res = await fetchWithTimeout(url(endpoint), init, OVERPASS_TIMEOUT_MS, done.signal);
       }
       if (res.ok) return (await res.json()) as { elements?: OverpassElement[] };
       if (RETRYABLE_STATUS.has(res.status)) busy = true;
-      failures.push(`${host}: HTTP ${res.status}`);
+      throw new Error(`HTTP ${res.status}`);
     } catch (e) {
-      const reason = e instanceof Error && e.name === 'AbortError' ? 'timed out' : String((e as Error)?.message ?? e);
-      failures.push(`${host}: ${reason}`);
+      if (!done.signal.aborted) failures.push(`${host}: ${(e as Error)?.message ?? String(e)}`);
+      throw e;
     }
-  }
+  };
 
-  if (__DEV__) console.warn('Church search failed on every server:', failures);
-  const detail = `\n\nDetails: ${failures.join('; ')}`;
-  throw new SearchError(
-    busy
-      ? `The church directory is busy right now. Please try again in a minute.${detail}`
-      : `Could not reach the church directory. Check your connection and try again.${detail}`,
-  );
+  try {
+    return await new Promise((resolve, reject) => {
+      let next = 0;
+      let running = 0;
+      let hedgeTimer: ReturnType<typeof setTimeout> | undefined;
+
+      const launch = () => {
+        clearTimeout(hedgeTimer);
+        if (done.signal.aborted || next >= OVERPASS_URLS.length) return;
+        const endpoint = OVERPASS_URLS[next++];
+        running++;
+        attempt(endpoint).then(
+          (data) => {
+            clearTimeout(hedgeTimer);
+            resolve(data);
+          },
+          () => {
+            running--;
+            if (next < OVERPASS_URLS.length) launch(); // a failure starts the next server right away
+            else if (running === 0) reject(new Error('all servers failed'));
+          },
+        );
+        if (next < OVERPASS_URLS.length) hedgeTimer = setTimeout(launch, OVERPASS_HEDGE_MS);
+      };
+      launch();
+    });
+  } catch {
+    if (__DEV__) console.warn('Church search failed on every server:', failures);
+    const detail = `\n\nDetails: ${failures.join('; ')}`;
+    throw new SearchError(
+      busy
+        ? `The church directory is busy right now. Please try again in a minute.${detail}`
+        : `Could not reach the church directory. Check your connection and try again.${detail}`,
+    );
+  } finally {
+    done.abort();
+  }
 }
 
-async function fetchWithTimeout(url: string, init: RequestInit = {}, ms = 30000): Promise<Response> {
+/**
+ * fetch with a time limit. Also cancels if `cancel` fires. Expo's fetch reports a cancelled request
+ * as "Fetch request has been canceled", so a timeout is re-thrown with a clearer message.
+ */
+async function fetchWithTimeout(url: string, init: RequestInit = {}, ms = 30000, cancel?: AbortSignal): Promise<Response> {
   const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), ms);
+  let timedOut = false;
+  const timer = setTimeout(() => {
+    timedOut = true;
+    controller.abort();
+  }, ms);
+  const onCancel = () => controller.abort();
+  cancel?.addEventListener('abort', onCancel);
   try {
     return await fetch(url, { ...init, signal: controller.signal });
+  } catch (e) {
+    if (timedOut) throw new Error(`no response after ${Math.round(ms / 1000)}s`);
+    throw e;
   } finally {
     clearTimeout(timer);
+    cancel?.removeEventListener('abort', onCancel);
   }
 }
 
