@@ -5,8 +5,10 @@ import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { Cross } from '@/components/cross';
+import { HomeMenu } from '@/components/home-menu';
 import { Tappable } from '@/components/tappable';
-import { Colors, Fonts, MaxContentWidth, Spacing } from '@/constants/theme';
+import { Fonts, MaxContentWidth, Spacing, type Palette } from '@/constants/theme';
+import { useColors, useStyles } from '@/lib/theme';
 import { randomQuote, TRANSLATION } from '@/lib/bible';
 
 type IconName = ComponentProps<typeof MaterialCommunityIcons>['name'];
@@ -19,10 +21,15 @@ const NAV: { label: string; a11y: string; icon: IconName; href: Href }[] = [
 ];
 
 export default function HomeScreen() {
+  const Colors = useColors();
+  const styles = useStyles(makeStyles);
   const [quote, setQuote] = useState(() => randomQuote());
 
   return (
     <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
+      <View style={styles.topBar}>
+        <HomeMenu />
+      </View>
       {/* Scrolls only when a long verse doesn't fit, so nothing gets cut off. */}
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
         <Cross size={110} />
@@ -54,8 +61,10 @@ export default function HomeScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (Colors: Palette) =>
+  StyleSheet.create({
   safe: { flex: 1, backgroundColor: Colors.background },
+  topBar: { flexDirection: 'row', justifyContent: 'flex-end', paddingHorizontal: Spacing.two, paddingTop: Spacing.one },
   scrollContent: {
     flexGrow: 1,
     width: '100%',

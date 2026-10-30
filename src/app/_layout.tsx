@@ -1,24 +1,37 @@
-import { DarkTheme, Stack, ThemeProvider } from 'expo-router';
+import { DarkTheme, DefaultTheme, Stack, ThemeProvider } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
+import { useMemo } from 'react';
 
-import { Colors } from '@/constants/theme';
-
-const theme = {
-  ...DarkTheme,
-  colors: {
-    ...DarkTheme.colors,
-    background: Colors.background,
-    card: Colors.background,
-    text: Colors.text,
-    border: Colors.border,
-    primary: Colors.text,
-  },
-};
+import { AppThemeProvider, useColors } from '@/lib/theme';
 
 export default function RootLayout() {
   return (
-    <ThemeProvider value={theme}>
-      <StatusBar style="light" />
+    <AppThemeProvider>
+      <ThemedStack />
+    </AppThemeProvider>
+  );
+}
+
+function ThemedStack() {
+  const Colors = useColors();
+  const navTheme = useMemo(() => {
+    const base = Colors.scheme === 'light' ? DefaultTheme : DarkTheme;
+    return {
+      ...base,
+      colors: {
+        ...base.colors,
+        background: Colors.background,
+        card: Colors.background,
+        text: Colors.text,
+        border: Colors.border,
+        primary: Colors.text,
+      },
+    };
+  }, [Colors]);
+
+  return (
+    <ThemeProvider value={navTheme}>
+      <StatusBar style={Colors.scheme === 'light' ? 'dark' : 'light'} />
       <Stack
         screenOptions={{
           headerStyle: { backgroundColor: Colors.background },

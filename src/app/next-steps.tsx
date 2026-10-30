@@ -2,10 +2,12 @@ import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { router } from 'expo-router';
 import { Linking, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
-import { Colors, MaxContentWidth, Spacing } from '@/constants/theme';
+import { MaxContentWidth, Spacing, type Palette } from '@/constants/theme';
+import { useColors, useStyles } from '@/lib/theme';
 import { CRISIS, type Resource, SECTIONS } from '@/data/next-steps';
 
 export default function NextStepsScreen() {
+  const styles = useStyles(makeStyles);
   return (
     <ScrollView contentContainerStyle={styles.content}>
       <Text style={styles.intro}>
@@ -35,6 +37,7 @@ export default function NextStepsScreen() {
 }
 
 function ResourceCard({ item }: { item: Resource }) {
+  const styles = useStyles(makeStyles);
   return (
     <View style={styles.card}>
       <Text style={styles.name}>{item.name}</Text>
@@ -76,6 +79,8 @@ function Action({
   onPress: () => void;
   primary?: boolean;
 }) {
+  const Colors = useColors();
+  const styles = useStyles(makeStyles);
   const color = primary ? Colors.background : Colors.text;
   return (
     <Pressable
@@ -88,7 +93,8 @@ function Action({
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (Colors: Palette) =>
+  StyleSheet.create({
   content: {
     width: '100%',
     maxWidth: MaxContentWidth,

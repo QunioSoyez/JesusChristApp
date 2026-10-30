@@ -50,14 +50,14 @@ const MAP_SCRIPT = `
       markers = {};
       var c = msg.center;
       var area = L.circle([c.lat, c.lon], {
-        radius: msg.radiusMiles * METERS_PER_MILE, color: '#ffffff', weight: 1, opacity: 0.35, fill: false
+        radius: msg.radiusMiles * METERS_PER_MILE, color: THEME.area, weight: 1, opacity: 0.45, fill: false
       }).addTo(layer);
       L.circleMarker([c.lat, c.lon], {
-        radius: 7, color: '#000', weight: 2, fillColor: '#4da3ff', fillOpacity: 1
+        radius: 7, color: THEME.pinBorder, weight: 2, fillColor: '#4da3ff', fillOpacity: 1
       }).bindTooltip('Search center').addTo(layer);
       msg.churches.forEach(function (ch) {
         var m = L.circleMarker([ch.lat, ch.lon], {
-          radius: 7, color: '#000', weight: 2, fillColor: '#ffffff', fillOpacity: 1
+          radius: 7, color: THEME.pinBorder, weight: 2, fillColor: THEME.pin, fillOpacity: 1
         });
         m.bindPopup('<div class="name">' + esc(ch.name) + '</div><div class="dist">' + esc(ch.distance) +
           '</div><button data-directions="' + esc(ch.id) + '">Directions</button>');
@@ -85,30 +85,44 @@ const MAP_SCRIPT = `
 })();
 `;
 
-const PAGE_CSS = `
-html, body, #map { height: 100%; margin: 0; background: #000; }
-.leaflet-tile-pane { filter: invert(1) hue-rotate(180deg) brightness(0.95) contrast(0.9); }
-.leaflet-container { font-family: -apple-system, system-ui, sans-serif; background: #000; }
-.leaflet-control-attribution { background: rgba(0,0,0,0.7) !important; color: #aaa; }
-.leaflet-control-attribution a { color: #ddd; }
-.leaflet-popup-content-wrapper, .leaflet-popup-tip { background: #111; color: #fff; }
+export type MapScheme = 'dark' | 'light';
+
+// Colors for pins and the search-area circle, per scheme (used by MAP_SCRIPT as THEME).
+const MAP_THEME: Record<MapScheme, { pin: string; pinBorder: string; area: string }> = {
+  dark: { pin: '#ffffff', pinBorder: '#000000', area: '#ffffff' },
+  light: { pin: '#000000', pinBorder: '#ffffff', area: '#000000' },
+};
+
+function pageCss(scheme: MapScheme): string {
+  const dark = scheme === 'dark';
+  const bg = dark ? '#000' : '#fff';
+  return `
+html, body, #map { height: 100%; margin: 0; background: ${bg}; }
+${dark ? '.leaflet-tile-pane { filter: invert(1) hue-rotate(180deg) brightness(0.95) contrast(0.9); }' : ''}
+.leaflet-container { font-family: -apple-system, system-ui, sans-serif; background: ${bg}; }
+.leaflet-control-attribution { background: ${dark ? 'rgba(0,0,0,0.7)' : 'rgba(255,255,255,0.8)'} !important; color: ${dark ? '#aaa' : '#444'}; }
+.leaflet-control-attribution a { color: ${dark ? '#ddd' : '#000'}; }
+.leaflet-popup-content-wrapper, .leaflet-popup-tip { background: ${dark ? '#111' : '#fff'}; color: ${dark ? '#fff' : '#000'}; }
 .leaflet-popup-content .name { font-weight: 600; font-size: 14px; }
-.leaflet-popup-content .dist { color: #aaa; margin: 2px 0 8px; }
+.leaflet-popup-content .dist { color: ${dark ? '#aaa' : '#555'}; margin: 2px 0 8px; }
 .leaflet-popup-content button {
-  background: #fff; color: #000; border: 0; border-radius: 999px; padding: 6px 14px; font-weight: 600;
+  background: ${dark ? '#fff' : '#000'}; color: ${dark ? '#000' : '#fff'}; border: 0; border-radius: 999px; padding: 6px 14px; font-weight: 600;
 }
 `;
+}
 
-export function buildMapHtml(): string {
+/** The map page, styled for the app's current light or dark theme. */
+export function buildMapHtml(scheme: MapScheme = 'dark'): string {
   return `<!doctype html>
 <html><head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
 <style>${LEAFLET_CSS}</style>
-<style>${PAGE_CSS}</style>
+<style>${pageCss(scheme)}</style>
 </head><body>
 <div id="map"></div>
 <script>${LEAFLET_JS}</script>
+<script>var THEME = ${JSON.stringify(MAP_THEME[scheme])};</script>
 <script>${MAP_SCRIPT}</script>
 </body></html>`;
 }

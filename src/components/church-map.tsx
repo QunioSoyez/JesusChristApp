@@ -3,7 +3,8 @@ import { type ComponentType, type Ref, useEffect, useMemo, useRef, useState } fr
 import { Linking, type StyleProp, StyleSheet, type ViewStyle } from 'react-native';
 import { WebView, type WebViewMessageEvent } from 'react-native-webview';
 
-import { Colors } from '@/constants/theme';
+import { type Palette } from '@/constants/theme';
+import { useColors, useStyles } from '@/lib/theme';
 import { buildMapHtml, type ChurchMapProps, type MapInbound, type MapOutbound } from '@/lib/map-html';
 
 // OpenStreetMap's tile policy asks apps to identify themselves.
@@ -27,7 +28,11 @@ const MapWebView = WebView as unknown as ComponentType<MapWebViewProps>;
 export function ChurchMap({ center, radiusMiles, churches, selectedId, onSelect, onDirections }: ChurchMapProps) {
   const ref = useRef<WebViewHandle>(null);
   const [ready, setReady] = useState(false);
-  const html = useMemo(buildMapHtml, []);
+  const styles = useStyles(makeStyles);
+  const { scheme } = useColors();
+  const html = useMemo(() => buildMapHtml(scheme), [scheme]);
+  // A theme change reloads the page; wait for the new page's "ready" before sending data.
+  useEffect(() => setReady(false), [html]);
 
   const post = (msg: MapInbound) => ref.current?.injectJavaScript(`window.__receive(${JSON.stringify(msg)});true;`);
 
@@ -72,6 +77,7 @@ export function ChurchMap({ center, radiusMiles, churches, selectedId, onSelect,
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (Colors: Palette) =>
+  StyleSheet.create({
   map: { flex: 1, backgroundColor: Colors.background },
 });

@@ -4,7 +4,8 @@ import { ActivityIndicator, FlatList, Linking, Pressable, ScrollView, StyleSheet
 
 import { ChurchMap } from '@/components/church-map';
 import { Tappable } from '@/components/tappable';
-import { Colors, MaxContentWidth, Spacing } from '@/constants/theme';
+import { MaxContentWidth, Spacing, type Palette } from '@/constants/theme';
+import { useColors, useStyles } from '@/lib/theme';
 import {
   type Church,
   DEFAULT_RADIUS_MILES,
@@ -24,6 +25,8 @@ import type { MapChurch } from '@/lib/map-html';
 type Status = 'locating' | 'needs-place' | 'searching' | 'ready' | 'error';
 
 export default function ChurchesScreen() {
+  const Colors = useColors();
+  const styles = useStyles(makeStyles);
   const [center, setCenter] = useState<(LatLon & { label: string }) | null>(null);
   const [radius, setRadius] = useState<number>(DEFAULT_RADIUS_MILES);
   const [status, setStatus] = useState<Status>('locating');
@@ -258,6 +261,8 @@ function StatusLine({
   radius: number;
   denom?: DenominationFilter;
 }) {
+  const Colors = useColors();
+  const styles = useStyles(makeStyles);
   if (status === 'locating' || status === 'searching') {
     return (
       <View style={styles.statusRow}>
@@ -291,6 +296,7 @@ function ChurchRow({
   onPress: () => void;
   onDirections: () => void;
 }) {
+  const styles = useStyles(makeStyles);
   const denomLabel = church.denomination === 'Unknown' ? 'Denomination unknown' : church.denomination;
   const meta = [denomLabel, formatMiles(church.distanceMiles)].filter(Boolean).join(' · ');
 
@@ -318,6 +324,7 @@ function ChurchRow({
 }
 
 function ActionButton({ label, onPress, primary }: { label: string; onPress: () => void; primary?: boolean }) {
+  const styles = useStyles(makeStyles);
   return (
     <Pressable
       onPress={onPress}
@@ -328,7 +335,8 @@ function ActionButton({ label, onPress, primary }: { label: string; onPress: () 
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (Colors: Palette) =>
+  StyleSheet.create({
   screen: { flex: 1, backgroundColor: Colors.background },
   controls: {
     width: '100%',
@@ -368,7 +376,7 @@ const styles = StyleSheet.create({
   chipTextActive: { color: Colors.background, fontWeight: '600' },
   statusRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two },
   status: { color: Colors.textSecondary, fontSize: 13, paddingBottom: Spacing.two },
-  statusError: { color: '#ff8a8a' },
+  statusError: { color: Colors.error },
   mapBox: {
     height: 240,
     width: '100%',

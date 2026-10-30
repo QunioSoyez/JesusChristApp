@@ -12,7 +12,8 @@ import {
 } from 'react-native';
 
 import { Tappable } from '@/components/tappable';
-import { Colors, Fonts, MaxContentWidth, Spacing } from '@/constants/theme';
+import { Fonts, MaxContentWidth, Spacing, type Palette } from '@/constants/theme';
+import { useStyles } from '@/lib/theme';
 import { adjacentBook, getBookInfo, getBookText } from '@/lib/bible';
 import { useBibleVersion } from '@/lib/bible-versions';
 
@@ -27,6 +28,7 @@ const STRIP_PADDING = Spacing.three;
  * scroll to and highlight (used by Jesus in Scripture).
  */
 export default function BookReaderScreen() {
+  const styles = useStyles(makeStyles);
   const params = useLocalSearchParams<{ book: string; chapter?: string; verse?: string }>();
   const { version } = useBibleVersion();
   const info = getBookInfo(params.book);
@@ -212,6 +214,7 @@ export default function BookReaderScreen() {
 
 /** Verses `from`..`to` (1-based) as one text block: one verse per line, small verse numbers. */
 function VerseBlock({ verses, from, to }: { verses: string[]; from: number; to: number }) {
+  const styles = useStyles(makeStyles);
   return (
     <Text style={styles.verseText}>
       {verses.slice(from - 1, to).map((verse, k) => {
@@ -228,7 +231,8 @@ function VerseBlock({ verses, from, to }: { verses: string[]; from: number; to: 
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (Colors: Palette) =>
+  StyleSheet.create({
   screen: { flex: 1, backgroundColor: Colors.background },
   versionTag: { color: Colors.textSecondary, fontSize: 14, fontWeight: '600', letterSpacing: 1, paddingHorizontal: Spacing.two },
   stripWrap: {

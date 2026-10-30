@@ -1,9 +1,11 @@
 import { StyleSheet, View } from 'react-native';
 
-import { Colors } from '@/constants/theme';
+import { type Palette } from '@/constants/theme';
+import { useStyles } from '@/lib/theme';
 
-/** Simple white Latin cross drawn with two bars, scaled by `size` (overall height). */
+/** Simple Latin cross (text color: white in dark mode, black in light) drawn with two bars, scaled by `size` (overall height). */
 export function Cross({ size = 120 }: { size?: number }) {
+  const styles = useStyles(makeStyles);
   const bar = Math.max(4, Math.round(size * 0.09));
   const armWidth = Math.round(size * 0.62);
   const armTop = Math.round(size * 0.26);
@@ -16,7 +18,8 @@ export function Cross({ size = 120 }: { size?: number }) {
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (Colors: Palette) =>
+  StyleSheet.create({
   bar: {
     position: 'absolute',
     backgroundColor: Colors.text,

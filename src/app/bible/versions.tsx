@@ -3,11 +3,14 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { Tappable } from '@/components/tappable';
-import { Colors, MaxContentWidth, Spacing } from '@/constants/theme';
+import { MaxContentWidth, Spacing, type Palette } from '@/constants/theme';
+import { useColors, useStyles } from '@/lib/theme';
 import { BIBLE_VERSIONS, useBibleVersion } from '@/lib/bible-versions';
 
 /** Pick a Bible version. Shown on first visit to the Bible, and from the book list's version button. */
 export default function VersionsScreen() {
+  const Colors = useColors();
+  const styles = useStyles(makeStyles);
   const { first } = useLocalSearchParams<{ first?: string }>();
   const { chosen, choose } = useBibleVersion();
 
@@ -47,7 +50,8 @@ export default function VersionsScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (Colors: Palette) =>
+  StyleSheet.create({
   content: {
     width: '100%',
     maxWidth: MaxContentWidth,

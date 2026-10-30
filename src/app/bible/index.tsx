@@ -2,7 +2,8 @@ import { Redirect, router } from 'expo-router';
 import { SectionList, StyleSheet, Text, View } from 'react-native';
 
 import { Tappable } from '@/components/tappable';
-import { Colors, MaxContentWidth, Spacing } from '@/constants/theme';
+import { MaxContentWidth, Spacing, type Palette } from '@/constants/theme';
+import { useStyles } from '@/lib/theme';
 import { BOOKS } from '@/lib/bible';
 import { useBibleVersion } from '@/lib/bible-versions';
 
@@ -13,6 +14,7 @@ const SECTIONS = [
 
 /** Book list for the remembered Bible version. First visit goes to the version picker instead. */
 export default function BooksScreen() {
+  const styles = useStyles(makeStyles);
   const { loading, chosen, version } = useBibleVersion();
 
   if (loading) return null; // reading the saved choice; takes a moment at most
@@ -51,7 +53,8 @@ export default function BooksScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (Colors: Palette) =>
+  StyleSheet.create({
   list: {
     width: '100%',
     maxWidth: MaxContentWidth,

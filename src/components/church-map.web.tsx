@@ -1,12 +1,16 @@
 // Web: Leaflet map in an iframe. The iOS/Android version is church-map.tsx.
 import { useEffect, useMemo, useRef, useState } from 'react';
 
+import { useColors } from '@/lib/theme';
 import { buildMapHtml, type ChurchMapProps, type MapInbound, type MapOutbound } from '@/lib/map-html';
 
 export function ChurchMap({ center, radiusMiles, churches, selectedId, onSelect, onDirections }: ChurchMapProps) {
   const frame = useRef<HTMLIFrameElement>(null);
   const [ready, setReady] = useState(false);
-  const html = useMemo(buildMapHtml, []);
+  const Colors = useColors();
+  const html = useMemo(() => buildMapHtml(Colors.scheme), [Colors.scheme]);
+  // A theme change reloads the iframe; wait for the new page's "ready" before sending data.
+  useEffect(() => setReady(false), [html]);
 
   const post = (msg: MapInbound) => frame.current?.contentWindow?.postMessage({ source: 'church-app', payload: msg }, '*');
 
@@ -39,7 +43,7 @@ export function ChurchMap({ center, radiusMiles, churches, selectedId, onSelect,
       ref={frame}
       srcDoc={html}
       title="Map of nearby churches"
-      style={{ border: 0, width: '100%', height: '100%', display: 'block', background: '#000' }}
+      style={{ border: 0, width: '100%', height: '100%', display: 'block', background: Colors.background }}
     />
   );
 }

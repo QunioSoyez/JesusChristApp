@@ -3,10 +3,13 @@ import { useDeferredValue, useMemo, useState } from 'react';
 import { FlatList, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { Tappable } from '@/components/tappable';
-import { Colors, Fonts, MaxContentWidth, Spacing } from '@/constants/theme';
+import { Fonts, MaxContentWidth, Spacing, type Palette } from '@/constants/theme';
+import { useColors, useStyles } from '@/lib/theme';
 import { formatRef, REFERENCE_CATEGORIES, REFERENCE_VERSES, type ReferenceVerse } from '@/lib/bible';
 
 export default function ReferencesScreen() {
+  const Colors = useColors();
+  const styles = useStyles(makeStyles);
   const [query, setQuery] = useState('');
   const [category, setCategory] = useState<string | null>(null);
   const deferredQuery = useDeferredValue(query);
@@ -65,6 +68,7 @@ export default function ReferencesScreen() {
 }
 
 function Chip({ label, active, onPress }: { label: string; active: boolean; onPress: () => void }) {
+  const styles = useStyles(makeStyles);
   return (
     <Tappable onPress={onPress} accessibilityState={{ selected: active }} style={[styles.chip, active && styles.chipActive]}>
       <Text style={[styles.chipText, active && styles.chipTextActive]}>{label}</Text>
@@ -73,6 +77,7 @@ function Chip({ label, active, onPress }: { label: string; active: boolean; onPr
 }
 
 function ReferenceRow({ item }: { item: ReferenceVerse }) {
+  const styles = useStyles(makeStyles);
   return (
     <Tappable
       onPress={() =>
@@ -88,7 +93,8 @@ function ReferenceRow({ item }: { item: ReferenceVerse }) {
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (Colors: Palette) =>
+  StyleSheet.create({
   screen: { flex: 1, backgroundColor: Colors.background },
   inner: { width: '100%', maxWidth: MaxContentWidth, alignSelf: 'center', paddingHorizontal: Spacing.three },
   search: {

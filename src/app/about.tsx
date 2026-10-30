@@ -5,7 +5,8 @@ import { Linking, Pressable, ScrollView, StyleSheet, Text, View } from 'react-na
 
 import { Cross } from '@/components/cross';
 import { Tappable } from '@/components/tappable';
-import { Colors, MaxContentWidth, Spacing } from '@/constants/theme';
+import { MaxContentWidth, Spacing, type Palette } from '@/constants/theme';
+import { useStyles } from '@/lib/theme';
 import { APP_REPO_URL, COMPONENTS, type Credit, DATA_SOURCES } from '@/data/credits';
 import licenses from '@/data/licenses.json';
 
@@ -16,6 +17,7 @@ function packageLicenseText(name: string): string | undefined {
 }
 
 export default function AboutScreen() {
+  const styles = useStyles(makeStyles);
   const version = Constants.expoConfig?.version ?? '';
 
   return (
@@ -48,6 +50,7 @@ export default function AboutScreen() {
 }
 
 function Section({ title, items }: { title: string; items: Credit[] }) {
+  const styles = useStyles(makeStyles);
   return (
     <View style={styles.section}>
       <Text style={styles.sectionTitle}>{title}</Text>
@@ -59,6 +62,7 @@ function Section({ title, items }: { title: string; items: Credit[] }) {
 }
 
 function CreditCard({ item }: { item: Credit }) {
+  const styles = useStyles(makeStyles);
   const [open, setOpen] = useState(false);
   const fullText = [item.notice, item.licensePackage ? packageLicenseText(item.licensePackage) : undefined]
     .filter(Boolean)
@@ -84,7 +88,8 @@ function CreditCard({ item }: { item: Credit }) {
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (Colors: Palette) =>
+  StyleSheet.create({
   content: {
     width: '100%',
     maxWidth: MaxContentWidth,
