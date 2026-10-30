@@ -1,0 +1,15 @@
+// Cloudflare config for the web version of the app (https://jesus-christ-app.michaelbarnes0.workers.dev).
+// Cloudflare builds it from GitHub on every push to main: `npx expo export --platform web` makes
+// dist/, and `npx wrangler deploy` uploads it using this file.
+// (The church finder has its own config in church-finder-worker/wrangler.toml.)
+{
+  // Must match the Worker's name in the Cloudflare dashboard.
+  "name": "jesus-christ-app",
+  "compatibility_date": "2026-09-01",
+  "assets": {
+    "directory": "./dist/",
+    // The app handles its own pages (e.g. /history/nazareth), so any path that isn't a real
+    // file gets index.html instead of a 404.
+    "not_found_handling": "single-page-application"
+  }
+}
