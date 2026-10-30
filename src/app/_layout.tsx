@@ -30,6 +30,8 @@ export default function RootLayout() {
         <Stack.Screen name="references" options={{ title: 'Jesus in Scripture' }} />
         <Stack.Screen name="churches" options={{ title: 'Find a Church' }} />
         <Stack.Screen name="next-steps" options={{ title: 'Next Steps' }} />
+        <Stack.Screen name="about" options={{ title: 'About & Credits' }} />
+        <Stack.Screen name="licenses" options={{ title: 'Open-source licenses' }} />
         <Stack.Screen name="bible/index" options={{ title: 'Bible' }} />
         <Stack.Screen name="bible/[book]/index" options={{ title: '' }} />
         <Stack.Screen name="bible/[book]/[chapter]" options={{ title: '' }} />

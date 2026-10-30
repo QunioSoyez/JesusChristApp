@@ -1,4 +1,5 @@
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
+import { router } from 'expo-router';
 import { Linking, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { Colors, MaxContentWidth, Spacing } from '@/constants/theme';
@@ -26,6 +27,9 @@ export default function NextStepsScreen() {
       </View>
 
       <Text style={styles.footnote}>Phone numbers are for the United States.</Text>
+      <Text style={styles.aboutLink} onPress={() => router.push('/about')} accessibilityRole="link">
+        About & Credits
+      </Text>
     </ScrollView>
   );
 }
@@ -126,5 +130,6 @@ const styles = StyleSheet.create({
   actionPrimary: { backgroundColor: Colors.text, borderColor: Colors.text },
   actionText: { fontSize: 14, fontWeight: '600' },
   footnote: { color: Colors.textMuted, fontSize: 12, marginTop: Spacing.four },
+  aboutLink: { color: Colors.textSecondary, fontSize: 13, textDecorationLine: 'underline', marginTop: Spacing.three },
   pressed: { opacity: 0.6 },
 });

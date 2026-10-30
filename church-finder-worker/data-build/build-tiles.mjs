@@ -6,7 +6,7 @@
 // the RS (0x1e) record-separator prefix. Keeps named Christian places of worship.
 // Output:
 //   <out>/tiles/<lat>_<lon>.json   records in each 1x1 degree square (key = south-west corner)
-//   <out>/meta.json                { generated, source, churches, tiles }
+//   <out>/meta.json                { generated, source, license, attribution, churches, tiles }
 
 import fs from 'node:fs';
 import path from 'node:path';
@@ -89,7 +89,9 @@ for (const [key, records] of tiles) {
 }
 const meta = {
   generated: new Date().toISOString().slice(0, 10),
-  source: 'OpenStreetMap contributors, via Geofabrik extracts (ODbL)',
+  source: 'OpenStreetMap contributors, via Geofabrik extracts',
+  license: 'ODbL-1.0',
+  attribution: '© OpenStreetMap contributors. Available under the Open Database License (ODbL): https://www.openstreetmap.org/copyright',
   churches: kept,
   tiles: tiles.size,
 };

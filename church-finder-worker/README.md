@@ -70,5 +70,14 @@ Then `npx wrangler dev` serves it at `http://localhost:8787/churches?lat=34.92&l
 
 ## Data and attribution
 
-Church data © OpenStreetMap contributors, available under the Open Database License (ODbL),
-downloaded from Geofabrik. The app credits OpenStreetMap on the Find a Church screen.
+Church data © OpenStreetMap contributors, downloaded from Geofabrik. OpenStreetMap data is
+available under the Open Database License (ODbL): https://www.openstreetmap.org/copyright
+
+The church files this worker publishes (`/tiles/<lat>_<lon>.json` and `/meta.json`) are an
+extract of OpenStreetMap and are themselves available under the **ODbL 1.0**
+(https://opendatacommons.org/licenses/odbl/1-0/). `meta.json` and every `/churches` response
+carry the attribution. The code that builds them (`data-build/`) is MIT-licensed with the rest of
+this repo.
+
+The app credits OpenStreetMap on the Find a Church screen, on the map itself, and on the
+About & Credits screen.

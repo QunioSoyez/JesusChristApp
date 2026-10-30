@@ -122,7 +122,7 @@ type Env = {
 
 /** One record in a tile file, as written by data-build/build-tiles.mjs. */
 type TileRecord = { type: 'node' | 'way' | 'relation'; id: number; lat: number; lon: number; tags: Record<string, string> };
-type DataMeta = { generated: string; source: string; churches: number; tiles: number };
+type DataMeta = { generated: string; source: string; license?: string; attribution?: string; churches: number; tiles: number };
 
 /** Tile keys (south-west corner, whole degrees) covering a circle around `center`. */
 function tilesForCircle(center: LatLon, radiusMi: number): string[] {
@@ -201,7 +201,15 @@ export default {
           .sort((a, b) => a.distanceMiles - b.distanceMiles)
           .slice(0, MAX_RESULTS);
         return json(
-          { churches, meta: { source: 'OpenStreetMap extract', dataDate: meta?.generated ?? null, tiles: keys.length } },
+          {
+            churches,
+            meta: {
+              source: 'OpenStreetMap extract',
+              attribution: meta?.attribution ?? '© OpenStreetMap contributors (ODbL)',
+              dataDate: meta?.generated ?? null,
+              tiles: keys.length,
+            },
+          },
           200,
           { 'Cache-Control': 'public, max-age=3600' },
         );

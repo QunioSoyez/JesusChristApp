@@ -1,6 +1,7 @@
 {
   "name": "jesus-christ-app",
   "version": "1.0.0",
+  "license": "MIT",
   "main": "expo-router/entry",
   "dependencies": {
     "@expo/ui": "~58.0.25",
@@ -43,7 +44,8 @@
     "lint": "expo lint",
     "build-data": "node scripts/build-data.mjs",
     "typecheck": "tsc --noEmit",
-    "build-map": "node scripts/build-map-assets.mjs"
+    "build-map": "node scripts/build-map-assets.mjs",
+    "build-licenses": "node scripts/build-licenses.mjs"
   },
   "private": true
 }
