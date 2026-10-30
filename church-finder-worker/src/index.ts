@@ -213,35 +213,33 @@ export default {
     if (url.pathname === '/geocode') {
       const q = (url.searchParams.get('q') ?? '').trim();
       if (!q) return json(null);
-      // v3: flush entries cached before the countrycodes=us fix (a backend that
-      // ignored the old "USA" text hint cached a Lithuanian result for 28115).
-      const cacheKey = new Request(`https://church-finder/geocode/v3?q=${encodeURIComponent(q.toLowerCase())}`, req);
+      // Bump GEOCODE_CACHE_VERSION whenever lookup logic changes, so answers cached by an older
+      // version (kept up to 7 days) are ignored. v4: earlier versions cached a Lithuanian match
+      // for the US ZIP "28115".
+      const GEOCODE_CACHE_VERSION = 'v4';
+      const cacheKey = new Request(`https://church-finder/geocode/${GEOCODE_CACHE_VERSION}?q=${encodeURIComponent(q.toLowerCase())}`);
       const cache = caches.default;
       const cached = await cache.match(cacheKey);
-      console.log(`[geocode] q=${JSON.stringify(q)} cache=${cached ? 'HIT' : 'MISS'}`);
       if (cached) return fromCache(cached, { 'X-Cache': 'HIT' });
       try {
-        // Bare US ZIPs are globally ambiguous: "28115" matches postcodes in
-        // Lithuania and Ukraine with identical rank, so limit=1 is a coin flip.
-        // countrycodes=us pins the search to the US deterministically (a text
-        // "USA" hint is ignored by some Nominatim backends), with the
-        // find-preference below as belt-and-braces.
-        const isZip = /^\d{5}(-\d{4})?$/.test(q);
-        const upstreamParams = isZip
-          ? `format=json&limit=5&countrycodes=us&q=${encodeURIComponent(q)}`
-          : `format=json&limit=5&q=${encodeURIComponent(q)}`;
-        const res = await fetchWithTimeout(`${NOMINATIM_URL}?${upstreamParams}`,
+        // A bare 5-digit number (or ZIP+4) is a US ZIP code. As free text, "28115" also matches
+        // postcodes in Lithuania and Ukraine, so ZIPs use Nominatim's structured postal-code
+        // search limited to the US.
+        const zip = q.match(/^(\d{5})(?:-\d{4})?$/);
+        const params = zip
+          ? `format=json&limit=1&countrycodes=us&postalcode=${zip[1]}`
+          : `format=json&limit=1&q=${encodeURIComponent(q)}`;
+        const res = await fetchWithTimeout(`${NOMINATIM_URL}?${params}`,
           { headers: { 'User-Agent': UA, Accept: 'application/json' } }, 12000);
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const arr = (await res.json()) as { lat: string; lon: string; display_name: string }[];
-        const first = isZip
-          ? (arr.find((r) => /, United States$/.test(r.display_name)) ?? arr[0])
-          : arr[0];
-        console.log(`[geocode] q=${JSON.stringify(q)} upstream=${JSON.stringify(upstreamParams)} n=${arr.length} picked=${first?.display_name ?? '(none)'}`);
+        const first = arr[0];
         const out = first
-          ? { lat: Number(first.lat), lon: Number(first.lon), label: first.display_name.split(',').slice(0, 3).join(',').trim(), build: 'zipfix2' }
+          ? { lat: Number(first.lat), lon: Number(first.lon), label: first.display_name.split(',').slice(0, 3).join(',').trim() }
           : null;
-        const response = json(out, 200, { 'Cache-Control': 'public, max-age=86400, s-maxage=604800', 'X-Cache': 'MISS' });
+        // Don't keep "not found" answers for long, in case it was a temporary lookup problem.
+        const ttl = out ? 604800 : 3600;
+        const response = json(out, 200, { 'Cache-Control': `public, max-age=86400, s-maxage=${ttl}`, 'X-Cache': 'MISS' });
         ctx.waitUntil(cache.put(cacheKey, response.clone()));
         return response;
       } catch (e) {
