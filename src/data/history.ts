@@ -478,7 +478,9 @@ export const HISTORY: HistoryEntry[] = [
     ],
     sources: [wp('Isaiah_Scroll')],
     wiki: 'Isaiah_Scroll',
-    imageSearch: 'Great Isaiah Scroll',
+    // A close-up of one section; the article's photo is the whole 24-foot scroll in one thin strip.
+    image: 'Great Isaiah Scroll Ch53.jpg',
+    imageSearch: 'Great Isaiah Scroll column',
   },
   {
     id: 'p52',

@@ -77,7 +77,9 @@ async function searchImage(query) {
     const file = hit.title.replace(/^File:/, '');
     if (!/\.jpe?g$/i.test(file)) continue;
     const info = await fileInfo(file);
-    if (info && ALLOWED_LICENSE.test(info.license)) return file;
+    // Skip very long strips (e.g. a whole scroll), which are unreadable on a phone.
+    const ratio = info ? info.width / info.height : 0;
+    if (info && ratio < 3 && ratio > 0.4 && ALLOWED_LICENSE.test(info.license)) return file;
   }
   return undefined;
 }
@@ -111,12 +113,16 @@ async function fileInfo(file) {
       .replace(/&nbsp;/g, ' ')
       .replace(/\s+/g, ' ')
       .trim();
+  // Some pages repeat the author in nested tags ("Unknown artistUnknown artist").
+  let author = plain(meta.Artist?.value).slice(0, 160) || 'Unknown author';
+  const half = author.length / 2;
+  if (author.length % 2 === 0 && author.slice(0, half) === author.slice(half)) author = author.slice(0, half);
   return {
     url: info.thumburl ?? info.url,
     width: info.thumbwidth ?? info.width,
     height: info.thumbheight ?? info.height,
     pageUrl: info.descriptionurl,
-    author: plain(meta.Artist?.value).slice(0, 160) || 'Unknown author',
+    author,
     license: plain(meta.LicenseShortName?.value) || 'Unknown license',
     licenseUrl: meta.LicenseUrl?.value,
   };
@@ -131,8 +137,12 @@ let failed = 0;
 for (const entry of entries) {
   const label = entry.id.padEnd(20);
   try {
-    const file =
-      entry.image ?? (entry.imageSearch ? await searchImage(entry.imageSearch) : undefined) ?? (await leadImage(entry.wiki));
+    let file = entry.image;
+    if (file && !(await fileInfo(file))) {
+      console.log(`      ${entry.id}: Commons file "${file}" not found, trying the search instead`);
+      file = undefined;
+    }
+    file ??= (entry.imageSearch ? await searchImage(entry.imageSearch) : undefined) ?? (await leadImage(entry.wiki));
     if (!file) throw new Error(`no free image found for "${entry.imageSearch ?? entry.wiki}" — set image: in history.ts`);
     const info = await fileInfo(file);
     if (!info) throw new Error(`Commons file not found: ${file}`);
