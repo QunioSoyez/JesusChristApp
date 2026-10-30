@@ -2,12 +2,14 @@
 // Phone -> Worker -> Overpass/Nominatim (with server-side hedging, retries, and cache).
 //
 // Endpoints:
-//   GET /churches?lat=..&lon=..&radiusMi=10   -> { churches: Church[] }
+//   GET /churches?lat=..&lon=..&radiusMi=10   -> { churches: Church[], meta }
 //   GET /geocode?q=Dallas,TX                 -> { lat, lon, label } | null
 //
-// Why: public Overpass servers rate-limit mobile clients (HTTP 502 / timeouts).
-// The Worker adds a proper User-Agent, tries 3 servers in order, and caches by
-// rounded location so 100 users in one city share one upstream query.
+// Why: public Overpass servers rate-limit or refuse mobile clients (HTTP 406/502 / timeouts).
+// The Worker adds a proper User-Agent, overlaps requests across 3 servers, treats Overpass
+// "200 OK but query failed" answers as failures, and caches by ~1km grid cell so users in one
+// area share one upstream query. Responses include a `meta` object (cache, upstream, failures)
+// for troubleshooting; the app ignores it.
 
 const OVERPASS_URLS = [
   'https://overpass-api.de/api/interpreter',
@@ -117,45 +119,135 @@ async function fetchWithTimeout(url: string, init: RequestInit, ms: number): Pro
   finally { clearTimeout(t); }
 }
 
-// Two-phase search: nodes first (fast — covers the vast majority of mapped
-// churches), then ways/relations only if the area is sparse. A single `nwr`
-// query over a big city (e.g. Dallas at 10mi) returns thousands of building
-// outlines and times out every public server; this keeps cities fast without
-// losing building-mapped churches in rural areas.
-async function searchUpstream(center: LatLon, radius: number): Promise<any[]> {
-  const base = `["amenity"="place_of_worship"]["religion"="christian"]["name"](around:${radius},${center.lat},${center.lon})`;
-  const nodeQuery = `[out:json][timeout:20];node${base};out tags;`;
-  const nodes = await queryOverpass(nodeQuery);
-  const elements: any[] = nodes.elements ?? [];
-  if (elements.length >= 40) return elements; // dense area — nodes alone are plenty
-  const wrQuery = `[out:json][timeout:20];(way${base};relation${base};);out center tags;`;
-  try {
-    const wr = await queryOverpass(wrQuery);
-    return elements.concat(wr.elements ?? []);
-  } catch {
-    return elements; // building outlines failed — nodes are still a good answer
-  }
+type Env = {
+  /** Optional comma-separated override of the Overpass servers (used for local testing). */
+  OVERPASS_URLS?: string;
+};
+
+type OverpassResult = { elements: any[]; host: string };
+
+// Overpass sometimes answers HTTP 200 with an empty list plus a "remark" explaining that the
+// query failed (timeout, out of memory, too busy). That is a failure, not "no churches".
+function overpassRemarkError(data: any): string | null {
+  const remark = typeof data?.remark === 'string' ? data.remark : '';
+  return /error|timed out|timeout|out of memory|too busy|rate_limited/i.test(remark) ? remark.slice(0, 160) : null;
 }
 
-async function queryOverpass(query: string): Promise<any> {
-  const failures: string[] = [];
-  for (const endpoint of OVERPASS_URLS) {
-    const host = new URL(endpoint).host;
-    for (let attempt = 0; attempt < 2; attempt++) {
+/**
+ * Runs one Overpass query with overlapping requests: server 1 starts right away; if it hasn't
+ * answered within HEDGE_MS (or fails sooner), server 2 starts, then server 3. The first valid
+ * answer wins and the others are cancelled. Fails only when every server has failed.
+ */
+const HEDGE_MS = 4000;
+const SERVER_TIMEOUT_MS = 18000; // whole search stays under ~26s, inside the app's wait
+async function queryOverpass(query: string, urls: string[], failures: string[]): Promise<OverpassResult> {
+  const winner = new AbortController();
+  return new Promise<OverpassResult>((resolve, reject) => {
+    let next = 0;
+    let running = 0;
+    let hedge: ReturnType<typeof setTimeout> | null = null;
+    const clearHedge = () => { if (hedge !== null) clearTimeout(hedge); hedge = null; };
+
+    const attempt = async (endpoint: string): Promise<OverpassResult> => {
+      const host = new URL(endpoint).host;
+      const c = new AbortController();
+      const timer = setTimeout(() => c.abort(), SERVER_TIMEOUT_MS);
+      const stop = () => c.abort();
+      winner.signal.addEventListener('abort', stop);
       try {
-        const res = await fetchWithTimeout(`${endpoint}?data=${encodeURIComponent(query)}`,
-          { headers: { Accept: 'application/json', 'User-Agent': UA } }, 25000);
-        if (res.ok) return await res.json();
-        if (![429, 502, 503, 504].includes(res.status)) throw new Error(`HTTP ${res.status}`);
-        failures.push(`${host}: HTTP ${res.status}`);
-        await new Promise((r) => setTimeout(r, 1200));
+        const res = await fetch(`${endpoint}?data=${encodeURIComponent(query)}`, {
+          headers: { Accept: 'application/json', 'User-Agent': UA },
+          signal: c.signal,
+        });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = (await res.json()) as any;
+        const remark = overpassRemarkError(data);
+        if (remark) throw new Error(`server error: ${remark}`);
+        return { elements: Array.isArray(data?.elements) ? data.elements : [], host };
       } catch (e) {
-        failures.push(`${host}: ${(e as Error)?.message ?? String(e)}`);
-        break; // timeouts move to next server immediately
+        const msg = c.signal.aborted && !winner.signal.aborted
+          ? `no response after ${SERVER_TIMEOUT_MS / 1000}s`
+          : (e as Error)?.message ?? String(e);
+        if (!winner.signal.aborted) failures.push(`${host}: ${msg}`);
+        throw e;
+      } finally {
+        clearTimeout(timer);
+        winner.signal.removeEventListener('abort', stop);
       }
-    }
+    };
+
+    const launch = () => {
+      clearHedge();
+      if (winner.signal.aborted || next >= urls.length) return;
+      const endpoint = urls[next++];
+      running++;
+      attempt(endpoint).then(
+        (result) => {
+          clearHedge();
+          winner.abort();
+          resolve(result);
+        },
+        () => {
+          running--;
+          if (next < urls.length) launch(); // a failure starts the next server right away
+          else if (running === 0) reject(new Error('all servers failed'));
+        },
+      );
+      if (next < urls.length) hedge = setTimeout(launch, HEDGE_MS);
+    };
+    launch();
+  });
+}
+
+// Churches are mapped either as points (nodes) or as building outlines (ways/relations); many US
+// churches are outlines only. Both searches run at the same time. A single combined query over a
+// dense city can time out, so they are separate. If one half fails the result is marked partial.
+async function searchUpstream(center: LatLon, radiusMeters: number, urls: string[]) {
+  const base = `["amenity"="place_of_worship"]["religion"="christian"]["name"](around:${radiusMeters},${center.lat},${center.lon})`;
+  const nodeFailures: string[] = [];
+  const outlineFailures: string[] = [];
+  const [nodes, outlines] = await Promise.allSettled([
+    queryOverpass(`[out:json][timeout:15];node${base};out tags;`, urls, nodeFailures),
+    queryOverpass(`[out:json][timeout:15];(way${base};relation${base};);out center tags;`, urls, outlineFailures),
+  ]);
+  const failures = [...nodeFailures.map((f) => `points ${f}`), ...outlineFailures.map((f) => `outlines ${f}`)];
+  if (nodes.status === 'rejected' && outlines.status === 'rejected') {
+    throw new Error(`All Overpass servers failed: ${failures.join('; ')}`);
   }
-  throw new Error(`All Overpass servers failed: ${failures.join('; ')}`);
+  const elements = [
+    ...(nodes.status === 'fulfilled' ? nodes.value.elements : []),
+    ...(outlines.status === 'fulfilled' ? outlines.value.elements : []),
+  ];
+  const upstream = [
+    `points=${nodes.status === 'fulfilled' ? nodes.value.host : 'failed'}`,
+    `outlines=${outlines.status === 'fulfilled' ? outlines.value.host : 'failed'}`,
+  ].join(' ');
+  return { elements, partial: nodes.status === 'rejected' || outlines.status === 'rejected', upstream, failures };
+}
+
+/** Converts raw Overpass elements to deduplicated churches (distance is filled in per request). */
+function normalizeChurches(elements: any[], center: LatLon): Church[] {
+  const seen: Church[] = [];
+  for (const el of elements) {
+    const c = toChurch(el, center);
+    if (!c) continue;
+    const dup = seen.find((s) => s.name === c.name && milesBetween(s, c) < 0.1);
+    if (dup) {
+      dup.phone ??= c.phone; dup.website ??= c.website; dup.serviceTimes ??= c.serviceTimes;
+      dup.address ??= c.address;
+      if (dup.denomination === 'Unknown' || dup.denomination === 'Other') dup.denomination = c.denomination;
+    } else seen.push(c);
+  }
+  return seen;
+}
+
+/** Distances from this user's exact position, within the radius, nearest first. */
+function forUser(churches: Church[], user: LatLon, radiusMi: number): Church[] {
+  return churches
+    .map((c) => ({ ...c, distanceMiles: milesBetween(user, c) }))
+    .filter((c) => c.distanceMiles <= radiusMi)
+    .sort((a, b) => a.distanceMiles - b.distanceMiles)
+    .slice(0, MAX_RESULTS);
 }
 
 const cors = {
@@ -166,8 +258,23 @@ const cors = {
 const json = (data: unknown, status = 200, extra: Record<string, string> = {}) =>
   new Response(JSON.stringify(data), { status, headers: { 'Content-Type': 'application/json', ...cors, ...extra } });
 
+/** Re-sends a cached response with CORS + extra headers (Headers objects can't be spread). */
+function fromCache(cached: Response, extra: Record<string, string>): Response {
+  const headers = new Headers(cached.headers);
+  for (const [k, v] of Object.entries({ ...cors, ...extra })) headers.set(k, v);
+  return new Response(cached.body, { status: cached.status, headers });
+}
+
+// Cache entries for /churches hold the normalized church list for a ~1km grid cell. "fresh" is
+// used for 24h; "backup" is kept 7 days and only served when every Overpass server is failing.
+// Bump CACHE_VERSION to discard everything cached by an older version of this worker.
+const CACHE_VERSION = 'v3';
+const FRESH_TTL = 86400;
+const BACKUP_TTL = 604800;
+const EMPTY_OR_PARTIAL_TTL = 600; // retry sooner when a result may be incomplete
+
 export default {
-  async fetch(req: Request, _env: unknown, ctx: { waitUntil(p: Promise<unknown>): void }): Promise<Response> {
+  async fetch(req: Request, env: Env, ctx: { waitUntil(p: Promise<unknown>): void }): Promise<Response> {
     if (req.method === 'OPTIONS') return new Response(null, { headers: cors });
     const url = new URL(req.url);
 
@@ -175,57 +282,87 @@ export default {
       const lat = Number(url.searchParams.get('lat')), lon = Number(url.searchParams.get('lon'));
       const radiusMi = Math.min(Math.max(Number(url.searchParams.get('radiusMi')) || 10, 1), 50);
       if (!Number.isFinite(lat) || !Number.isFinite(lon)) return json({ error: 'lat/lon required' }, 400);
+      const user = { lat, lon };
 
-      // Round to ~1km grid so nearby users share cache entries.
-      const keyLat = lat.toFixed(2), keyLon = lon.toFixed(2);
-      const cacheKey = new Request(`https://church-finder/churches?lat=${keyLat}&lon=${keyLon}&r=${radiusMi}`, req);
+      // Search around the grid cell's center with a 1-mile buffer, so the cached list covers
+      // every user in the cell; each user's distances are then computed from their own position.
+      const grid = { lat: Number(lat.toFixed(2)), lon: Number(lon.toFixed(2)) };
+      const cell = `lat=${grid.lat}&lon=${grid.lon}&r=${radiusMi}`;
+      const freshKey = new Request(`https://church-finder/${CACHE_VERSION}/churches?${cell}`);
+      const backupKey = new Request(`https://church-finder/${CACHE_VERSION}/churches-backup?${cell}`);
       const cache = caches.default;
-      const cached = await cache.match(cacheKey);
-      if (cached) return new Response(cached.body, { headers: { ...cached.headers, ...cors, 'X-Cache': 'HIT' } });
 
+      const cached = await cache.match(freshKey);
+      if (cached) {
+        const data = (await cached.json()) as { churches: Church[]; upstream?: string; partial?: boolean };
+        return json(
+          { churches: forUser(data.churches, user, radiusMi), meta: { cache: 'HIT', upstream: data.upstream, partial: !!data.partial } },
+          200,
+          { 'Cache-Control': 'public, max-age=300', 'X-Cache': 'HIT' },
+        );
+      }
+
+      const urls = env.OVERPASS_URLS ? env.OVERPASS_URLS.split(',').map((s) => s.trim()).filter(Boolean) : OVERPASS_URLS;
       try {
-        const center = { lat, lon };
-        const radius = Math.round(radiusMi * METERS_PER_MILE);
-        const elements = await searchUpstream(center, radius);
-        const seen: Church[] = [];
-        for (const el of elements) {
-          const c = toChurch(el, center);
-          if (!c) continue;
-          const dup = seen.find((s) => s.name === c.name && milesBetween(s, c) < 0.1);
-          if (dup) {
-            dup.phone ??= c.phone; dup.website ??= c.website; dup.serviceTimes ??= c.serviceTimes;
-            dup.address ??= c.address;
-            if (dup.denomination === 'Unknown' || dup.denomination === 'Other') dup.denomination = c.denomination;
-          } else seen.push(c);
-        }
-        seen.sort((a, b) => a.distanceMiles - b.distanceMiles);
-        const res = json({ churches: seen.slice(0, MAX_RESULTS) }, 200,
-          { 'Cache-Control': 'public, max-age=3600, s-maxage=86400', 'X-Cache': 'MISS' });
-        // Clone into cache (don't block the response).
-        ctx.waitUntil(cache.put(cacheKey, res.clone()));
-        return res;
+        const radiusMeters = Math.round((radiusMi + 1) * METERS_PER_MILE);
+        const { elements, partial, upstream, failures } = await searchUpstream(grid, radiusMeters, urls);
+        const churches = normalizeChurches(elements, grid);
+        const body = JSON.stringify({ churches, upstream, partial });
+        const ttl = partial || churches.length === 0 ? EMPTY_OR_PARTIAL_TTL : FRESH_TTL;
+        const put = (key: Request, seconds: number) =>
+          cache.put(key, new Response(body, { headers: { 'Content-Type': 'application/json', 'Cache-Control': `public, s-maxage=${seconds}` } }));
+        ctx.waitUntil(put(freshKey, ttl));
+        if (!partial && churches.length > 0) ctx.waitUntil(put(backupKey, BACKUP_TTL));
+        return json(
+          { churches: forUser(churches, user, radiusMi), meta: { cache: 'MISS', upstream, partial, failures } },
+          200,
+          { 'Cache-Control': 'public, max-age=300', 'X-Cache': 'MISS', 'X-Upstream': upstream },
+        );
       } catch (e) {
-        // Serve stale cache on total failure if we have one.
-        if (cached) return new Response(cached.body, { headers: { ...cached.headers, ...cors, 'X-Cache': 'STALE' } });
-        return json({ error: 'Church directory is busy, try again in a minute.', detail: String(e) }, 502);
+        // Every server failed: fall back to the last good result for this area, if any.
+        const backup = await cache.match(backupKey);
+        if (backup) {
+          const data = (await backup.json()) as { churches: Church[]; upstream?: string };
+          return json(
+            { churches: forUser(data.churches, user, radiusMi), meta: { cache: 'STALE', upstream: data.upstream, error: String(e) } },
+            200,
+            { 'Cache-Control': 'no-store', 'X-Cache': 'STALE' },
+          );
+        }
+        return json({ error: 'Church directory is busy, try again in a minute.', detail: String(e) }, 502, { 'Cache-Control': 'no-store' });
       }
     }
 
     if (url.pathname === '/geocode') {
       const q = (url.searchParams.get('q') ?? '').trim();
       if (!q) return json(null);
-      const cacheKey = new Request(`https://church-finder/geocode?q=${encodeURIComponent(q.toLowerCase())}`, req);
+      // v3: flush entries cached before the countrycodes=us fix (a backend that
+      // ignored the old "USA" text hint cached a Lithuanian result for 28115).
+      const cacheKey = new Request(`https://church-finder/geocode/v3?q=${encodeURIComponent(q.toLowerCase())}`, req);
       const cache = caches.default;
       const cached = await cache.match(cacheKey);
-      if (cached) return new Response(cached.body, { headers: { ...cached.headers, ...cors, 'X-Cache': 'HIT' } });
+      console.log(`[geocode] q=${JSON.stringify(q)} cache=${cached ? 'HIT' : 'MISS'}`);
+      if (cached) return fromCache(cached, { 'X-Cache': 'HIT' });
       try {
-        const res = await fetchWithTimeout(`${NOMINATIM_URL}?format=json&limit=1&q=${encodeURIComponent(q)}`,
+        // Bare US ZIPs are globally ambiguous: "28115" matches postcodes in
+        // Lithuania and Ukraine with identical rank, so limit=1 is a coin flip.
+        // countrycodes=us pins the search to the US deterministically (a text
+        // "USA" hint is ignored by some Nominatim backends), with the
+        // find-preference below as belt-and-braces.
+        const isZip = /^\d{5}(-\d{4})?$/.test(q);
+        const upstreamParams = isZip
+          ? `format=json&limit=5&countrycodes=us&q=${encodeURIComponent(q)}`
+          : `format=json&limit=5&q=${encodeURIComponent(q)}`;
+        const res = await fetchWithTimeout(`${NOMINATIM_URL}?${upstreamParams}`,
           { headers: { 'User-Agent': UA, Accept: 'application/json' } }, 12000);
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const arr = (await res.json()) as { lat: string; lon: string; display_name: string }[];
-        const first = arr[0];
+        const first = isZip
+          ? (arr.find((r) => /, United States$/.test(r.display_name)) ?? arr[0])
+          : arr[0];
+        console.log(`[geocode] q=${JSON.stringify(q)} upstream=${JSON.stringify(upstreamParams)} n=${arr.length} picked=${first?.display_name ?? '(none)'}`);
         const out = first
-          ? { lat: Number(first.lat), lon: Number(first.lon), label: first.display_name.split(',').slice(0, 3).join(',').trim() }
+          ? { lat: Number(first.lat), lon: Number(first.lon), label: first.display_name.split(',').slice(0, 3).join(',').trim(), build: 'zipfix2' }
           : null;
         const response = json(out, 200, { 'Cache-Control': 'public, max-age=86400, s-maxage=604800', 'X-Cache': 'MISS' });
         ctx.waitUntil(cache.put(cacheKey, response.clone()));

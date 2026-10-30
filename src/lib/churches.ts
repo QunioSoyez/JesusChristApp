@@ -210,12 +210,14 @@ out center tags;`;
 
 /** Turns a city, address or ZIP code into coordinates. Returns null if nothing matched. */
 export async function geocode(place: string): Promise<(LatLon & { label: string }) | null> {
+  if (__DEV__) console.log('[geocode] query:', JSON.stringify(place), '| worker:', WORKER_URL ?? '(not set)');
   if (WORKER_URL) {
     try {
       const url = `${WORKER_URL}/geocode?q=${encodeURIComponent(place.trim())}`;
       const res = await fetchWithTimeout(url, { headers: { Accept: 'application/json' } }, 15000);
       if (res.ok) {
         const data = (await res.json()) as { lat?: number; lon?: number; label?: string } | null;
+        if (__DEV__) console.log('[geocode] via worker:', JSON.stringify(data));
         if (data && typeof data.lat === 'number' && typeof data.lon === 'number') {
           return { lat: data.lat, lon: data.lon, label: data.label ?? shortLabel(place) };
         }
@@ -225,7 +227,11 @@ export async function geocode(place: string): Promise<(LatLon & { label: string 
       // Fall through to direct Nominatim below.
     }
   }
-  const url = `${NOMINATIM_URL}?format=json&limit=1&q=${encodeURIComponent(place.trim())}`;
+  // Direct fallback: bare US ZIPs are globally ambiguous ("28115" also matches
+  // Lithuania/Ukraine at equal rank), so fetch several and prefer the US one.
+  const q = place.trim();
+  const isZip = /^\d{5}(-\d{4})?$/.test(q);
+  const url = `${NOMINATIM_URL}?format=json&limit=5&q=${encodeURIComponent(isZip ? `${q} USA` : q)}`;
   let res: Response;
   try {
     res = await fetchWithTimeout(url, { headers: osmHeaders() }, 15000);
@@ -234,7 +240,10 @@ export async function geocode(place: string): Promise<(LatLon & { label: string 
   }
   if (!res.ok) throw new SearchError(`Place lookup failed (error ${res.status}).`);
   const results = (await res.json()) as { lat: string; lon: string; display_name: string }[];
-  const first = results[0];
+  const first = isZip
+    ? (results.find((r) => /, United States$/.test(r.display_name)) ?? results[0])
+    : results[0];
+  if (__DEV__) console.log('[geocode] via direct Nominatim:', first?.display_name ?? '(none)');
   if (!first) return null;
   return { lat: Number(first.lat), lon: Number(first.lon), label: shortLabel(first.display_name) };
 }
