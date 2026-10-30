@@ -4,6 +4,10 @@ import { useMemo } from 'react';
 
 import { AppThemeProvider, useColors } from '@/lib/theme';
 
+// When someone opens a link straight into the app (e.g. /history/nazareth on the web), put the
+// home screen underneath it so the back arrow always has somewhere to go.
+export const unstable_settings = { initialRouteName: 'index' };
+
 export default function RootLayout() {
   return (
     <AppThemeProvider>

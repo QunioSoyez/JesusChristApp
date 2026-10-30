@@ -97,6 +97,12 @@ export default function HistoryDetailScreen() {
           {s.title}
         </Text>
       ))}
+
+      {/* Always offer a way to the full list, even when this page was opened from a link. */}
+      <Tappable onPress={() => router.navigate('/history')} style={styles.allButton} accessibilityLabel="See all places and finds">
+        <MaterialCommunityIcons name="pillar" size={18} color={Colors.text} />
+        <Text style={styles.allText}>All places and finds</Text>
+      </Tappable>
     </ScrollView>
   );
 }
@@ -210,4 +216,16 @@ const makeStyles = (Colors: Palette) =>
     },
     chipText: { color: Colors.text, fontSize: 14, fontWeight: '600' },
     link: { color: Colors.text, fontSize: 14, textDecorationLine: 'underline', marginBottom: Spacing.two },
+    allButton: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: Spacing.two,
+      marginTop: Spacing.four,
+      paddingVertical: 12,
+      borderRadius: 999,
+      borderWidth: 1,
+      borderColor: Colors.border,
+    },
+    allText: { color: Colors.text, fontSize: 15, fontWeight: '600' },
   });
