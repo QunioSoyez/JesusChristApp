@@ -19,8 +19,11 @@ export function getBookInfo(slug: string): BookInfo | undefined {
   return bookMap.get(slug);
 }
 
-/** Returns the verses of one chapter, or undefined if the book/chapter doesn't exist. */
-export function getChapter(slug: string, chapter: number): string[] | undefined {
+/**
+ * Returns a whole book's text (chapters of verses) for a Bible version, or undefined if the book
+ * doesn't exist. Only the KJV is bundled so far; other version ids fall back to it.
+ */
+export function getBookText(slug: string, _versionId = 'kjv'): BookText | undefined {
   const loader = BOOK_LOADERS[slug];
   if (!loader) return undefined;
   let text = textCache.get(slug);
@@ -28,7 +31,13 @@ export function getChapter(slug: string, chapter: number): string[] | undefined 
     text = loader();
     textCache.set(slug, text);
   }
-  return text.chapters[chapter - 1];
+  return text;
+}
+
+/** Book after (+1) or before (-1) this one in Bible order, if any. */
+export function adjacentBook(slug: string, step: 1 | -1): BookInfo | undefined {
+  const i = BOOKS.findIndex((b) => b.slug === slug);
+  return i < 0 ? undefined : BOOKS[i + step];
 }
 
 export function formatRef(slug: string, chapter: number, verse?: number): string {

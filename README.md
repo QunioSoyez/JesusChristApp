@@ -24,16 +24,23 @@ Then press `w` for web, or scan the QR code with the **Expo Go** app on your pho
 ## Project layout
 
 ```
-src/app/                    screens (Expo Router: each file is a route)
-  index.tsx                 home
-  references.tsx            Jesus in Scripture
-  bible/index.tsx           book list
-  bible/[book]/index.tsx    chapter picker
-  bible/[book]/[chapter].tsx  reader
-src/components/             shared UI (cross, tappable)
-src/lib/bible.ts            data access helpers
-src/data/                   generated data (do not edit by hand)
-scripts/build-data.mjs      regenerates src/data from the KJV source
+src/app/                       screens (Expo Router: each file is a route)
+  index.tsx                    home
+  references.tsx               Jesus in Scripture
+  bible/index.tsx              book list for the chosen Bible version
+  bible/versions.tsx           Bible version picker (shown on first visit; choice is remembered)
+  bible/[book]/index.tsx       whole-book reader with a chapter strip (?chapter=&verse= to jump)
+  bible/[book]/[chapter].tsx   forwards old chapter links to the book reader
+  churches.tsx                 Find a Church
+  next-steps.tsx               prayer lines and resources
+  about.tsx, licenses.tsx      About & Credits, open-source licenses
+src/components/                shared UI (cross, tappable, church map)
+src/lib/bible.ts               Bible data helpers
+src/lib/bible-versions.ts      Bible versions + remembered choice (add new versions here)
+src/lib/churches.ts            church search via the church-finder worker
+src/data/                      generated data (do not edit by hand)
+scripts/build-data.mjs         regenerates the Bible data from the KJV source
+church-finder-worker/          Cloudflare worker + monthly church data job
 ```
 
 ## Data

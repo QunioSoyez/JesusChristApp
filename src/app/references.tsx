@@ -77,7 +77,7 @@ function ReferenceRow({ item }: { item: ReferenceVerse }) {
     <Tappable
       onPress={() =>
         router.push({
-          pathname: '/bible/[book]/[chapter]',
+          pathname: '/bible/[book]',
           params: { book: item.b, chapter: String(item.c), verse: String(item.v) },
         })
       }
