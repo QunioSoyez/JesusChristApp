@@ -19,7 +19,7 @@ export const APP_REPO_URL = 'https://github.com/QunioSoyez/JesusChristApp';
 export const DATA_SOURCES: Credit[] = [
   {
     name: 'King James Version (1769)',
-    use: 'Bible text, Jesus in Scripture, and home screen verses.',
+    use: 'Bible text (KJV version), Jesus in Scripture, and home screen verses.',
     license: 'Public domain (United States)',
     url: 'https://github.com/scrollmapper/bible_databases',
     notice: `Text prepared by the Scrollmapper Bible Databases project.
@@ -45,6 +45,14 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.`,
+  },
+  {
+    name: 'Berean Standard Bible (BSB)',
+    use: 'Bible text when the BSB version is selected.',
+    license: 'Public domain (dedicated April 30, 2023)',
+    url: 'https://berean.bible/licensing.htm',
+    notice:
+      'The Berean Bible texts were placed into the public domain on April 30, 2023 by their publisher. Text files prepared by the Scrollmapper Bible Databases project (MIT License; see the King James Version entry above for the full notice).',
   },
   {
     name: 'OpenStreetMap',

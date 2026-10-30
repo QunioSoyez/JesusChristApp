@@ -1,20 +1,29 @@
-// Builds the app's bundled Bible data from the public-domain KJV (1769).
+// Builds the app's bundled Bible data from public-domain translations.
 //
-//   node scripts/build-data.mjs [path-to-KJV.json]
+//   node scripts/build-data.mjs [folder containing KJV.json, BSB.json, ...]
 //
-// With no argument it downloads KJV.json from scrollmapper/bible_databases.
+// With no argument it downloads each version's JSON from scrollmapper/bible_databases.
 // Writes:
-//   src/data/bible/<slug>.json   one file per book: { name, chapters: string[][] }
-//   src/data/books.ts            book list + lazy loaders
-//   src/data/references.json     NT verses that mention Jesus by name or title
-//   src/data/quotes.json         uplifting verses for the home screen
+//   src/data/bible/<version>/<slug>.json   one file per book: { name, chapters: string[][] }
+//   src/data/books.ts                      book list + loaders for every version
+//   src/data/references.json               NT verses that mention Jesus by name or title (KJV)
+//   src/data/quotes.json                   uplifting verses for the home screen (KJV)
+//
+// To add a version: add it to VERSIONS below (the source file name in scrollmapper's
+// formats/json folder), run this script, then add it to src/lib/bible-versions.ts.
 
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-const SOURCE_URL =
-  'https://raw.githubusercontent.com/scrollmapper/bible_databases/master/formats/json/KJV.json';
+const SOURCE_BASE = 'https://raw.githubusercontent.com/scrollmapper/bible_databases/master/formats/json/';
+
+// Versions to bundle. The first one also drives Jesus in Scripture and the home-screen quotes.
+// Every version must have the same 66 books in the same order (checked below).
+const VERSIONS = [
+  { id: 'kjv', file: 'KJV.json' }, // King James Version (1769), public domain
+  { id: 'bsb', file: 'BSB.json' }, // Berean Standard Bible, public domain since 2023
+];
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const dataDir = path.join(root, 'src', 'data');
@@ -64,20 +73,43 @@ const QUOTES = [
 
 const slugify = (name) => name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
 
-async function loadSource() {
-  const file = process.argv[2];
-  if (file) return JSON.parse(fs.readFileSync(file, 'utf8').replace(/^﻿/, ''));
-  console.log(`Downloading ${SOURCE_URL}`);
-  const res = await fetch(SOURCE_URL);
-  if (!res.ok) throw new Error(`Download failed: ${res.status}`);
-  return JSON.parse((await res.text()).replace(/^﻿/, ''));
+async function loadSource(file) {
+  const dir = process.argv[2];
+  if (dir) return JSON.parse(fs.readFileSync(path.join(dir, file), 'utf8').replace(/^\uFEFF/, ''));
+  console.log(`Downloading ${SOURCE_BASE}${file}`);
+  const res = await fetch(SOURCE_BASE + file);
+  if (!res.ok) throw new Error(`Download of ${file} failed: ${res.status}`);
+  return JSON.parse((await res.text()).replace(/^\uFEFF/, ''));
 }
 
-const source = await loadSource();
-if (source.books.length !== 66) throw new Error(`Expected 66 books, got ${source.books.length}`);
+const sources = [];
+for (const v of VERSIONS) {
+  const source = await loadSource(v.file);
+  if (source.books.length !== 66) throw new Error(`${v.id}: expected 66 books, got ${source.books.length}`);
+  sources.push({ ...v, source });
+}
 
 fs.rmSync(bibleDir, { recursive: true, force: true });
-fs.mkdirSync(bibleDir, { recursive: true });
+
+// Extra versions are written first (just the per-book text); the primary version below also
+// builds the book list, Jesus in Scripture, and quotes.
+const primary = sources[0];
+for (const { id, source } of sources.slice(1)) {
+  const dir = path.join(bibleDir, id);
+  fs.mkdirSync(dir, { recursive: true });
+  source.books.forEach((b, i) => {
+    const primaryBook = primary.source.books[i];
+    if (b.name !== primaryBook.name) throw new Error(`${id}: book ${i + 1} is ${b.name}, expected ${primaryBook.name}`);
+    const name = RENAME[b.name] ?? b.name;
+    // Empty strings are kept: some translations omit verses (e.g. Matthew 17:21 in the BSB).
+    const chapters = b.chapters.map((ch) => ch.verses.map((v) => v.text.trim()));
+    fs.writeFileSync(path.join(dir, `${slugify(name)}.json`), JSON.stringify({ name, chapters }));
+  });
+}
+
+const source = primary.source;
+const primaryDir = path.join(bibleDir, primary.id);
+fs.mkdirSync(primaryDir, { recursive: true });
 
 const books = [];
 const byName = new Map();
@@ -88,7 +120,7 @@ source.books.forEach((b, i) => {
   const slug = slugify(name);
   const testament = i < 39 ? 'OT' : 'NT';
   const chapters = b.chapters.map((ch) => ch.verses.map((v) => v.text.trim()));
-  fs.writeFileSync(path.join(bibleDir, `${slug}.json`), JSON.stringify({ name, chapters }));
+  fs.writeFileSync(path.join(primaryDir, `${slug}.json`), JSON.stringify({ name, chapters }));
   books.push({ slug, name, testament, chapters: chapters.length });
   byName.set(name, { slug, chapters });
 
@@ -121,7 +153,10 @@ fs.writeFileSync(
 );
 fs.writeFileSync(path.join(dataDir, 'quotes.json'), JSON.stringify(quotes, null, 1));
 
-const loaders = books.map((b) => `  '${b.slug}': () => require('./bible/${b.slug}.json'),`).join('\n');
+// Static require() calls so the bundler includes every version's files.
+const loaderBlock = (id) =>
+  books.map((b) => `    '${b.slug}': () => require('./bible/${id}/${b.slug}.json'),`).join('\n');
+const loaders = sources.map(({ id }) => `  ${id}: {\n${loaderBlock(id)}\n  },`).join('\n');
 fs.writeFileSync(
   path.join(dataDir, 'books.ts'),
   `// Generated by scripts/build-data.mjs — do not edit by hand.
@@ -131,12 +166,13 @@ export type BookText = { name: string; chapters: string[][] };
 
 export const BOOKS: BookInfo[] = ${JSON.stringify(books, null, 2)};
 
-export const BOOK_LOADERS: Record<string, () => BookText> = {
+/** Book loaders per Bible version id: BOOK_LOADERS[version][bookSlug](). */
+export const BOOK_LOADERS: Record<string, Record<string, () => BookText>> = {
 ${loaders}
 };
 `,
 );
 
 const counts = Object.fromEntries(CATEGORIES.map((c) => [c.id, references.filter((r) => r.tags.includes(c.id)).length]));
-console.log(`Books: ${books.length}  Reference verses: ${references.length}  Quotes: ${quotes.length}`);
+console.log(`Versions: ${sources.map((v) => v.id).join(', ')}  Books: ${books.length}  Reference verses: ${references.length}  Quotes: ${quotes.length}`);
 console.log(counts);

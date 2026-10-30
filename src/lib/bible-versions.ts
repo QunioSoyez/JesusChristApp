@@ -1,7 +1,8 @@
 // Bible versions the reader can show, and the user's remembered choice.
 //
-// To add a version: put its data in src/data/<id>/ (same shape as the KJV data), add an entry to
-// BIBLE_VERSIONS, and teach getBookText in src/lib/bible.ts to load it.
+// To add a version: add it to VERSIONS in scripts/build-data.mjs and run `npm run build-data`
+// (that writes src/data/bible/<id>/), then add an entry to BIBLE_VERSIONS below and credit its
+// source in src/data/credits.ts and CREDITS.md.
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useCallback, useEffect, useState } from 'react';
 
@@ -18,6 +19,12 @@ export const BIBLE_VERSIONS: BibleVersion[] = [
     abbr: 'KJV',
     name: 'King James Version',
     description: 'The classic 1611 English translation, in its 1769 standard text. Public domain.',
+  },
+  {
+    id: 'bsb',
+    abbr: 'BSB',
+    name: 'Berean Standard Bible',
+    description: 'A modern translation in clear, everyday English. Public domain.',
   },
 ];
 

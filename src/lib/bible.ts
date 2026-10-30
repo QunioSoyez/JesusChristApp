@@ -20,16 +20,19 @@ export function getBookInfo(slug: string): BookInfo | undefined {
 }
 
 /**
- * Returns a whole book's text (chapters of verses) for a Bible version, or undefined if the book
- * doesn't exist. Only the KJV is bundled so far; other version ids fall back to it.
+ * Returns a whole book's text (chapters of verses) in a Bible version, or undefined if the book
+ * doesn't exist. Unknown version ids fall back to the KJV. Some translations leave a verse empty
+ * where they omit it (e.g. Matthew 17:21 in the BSB); verse numbering is the same in all versions.
  */
-export function getBookText(slug: string, _versionId = 'kjv'): BookText | undefined {
-  const loader = BOOK_LOADERS[slug];
+export function getBookText(slug: string, versionId = 'kjv'): BookText | undefined {
+  const loaders = BOOK_LOADERS[versionId] ?? BOOK_LOADERS.kjv;
+  const loader = loaders?.[slug];
   if (!loader) return undefined;
-  let text = textCache.get(slug);
+  const key = `${versionId}/${slug}`;
+  let text = textCache.get(key);
   if (!text) {
     text = loader();
-    textCache.set(slug, text);
+    textCache.set(key, text);
   }
   return text;
 }

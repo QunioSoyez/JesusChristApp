@@ -220,7 +220,7 @@ function VerseBlock({ verses, from, to }: { verses: string[]; from: number; to: 
           <Fragment key={n}>
             {k > 0 ? '\n' : null}
             <Text style={styles.verseNum}>{n} </Text>
-            {verse}
+            {verse || <Text style={styles.omitted}>Not included in this translation.</Text>}
           </Fragment>
         );
       })}
@@ -276,6 +276,7 @@ const styles = StyleSheet.create({
   },
   verseText: { color: Colors.text, fontFamily: Fonts.serif, fontSize: 18, lineHeight: 30 },
   verseNum: { color: Colors.textMuted, fontSize: 12, fontFamily: Fonts.sans },
+  omitted: { color: Colors.textMuted, fontSize: 14, fontStyle: 'italic', fontFamily: Fonts.sans },
   footer: { flexDirection: 'row', justifyContent: 'space-between', paddingTop: Spacing.five, gap: Spacing.two },
   navButton: {
     borderWidth: 1,
