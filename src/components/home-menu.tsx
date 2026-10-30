@@ -1,15 +1,16 @@
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { type Href, router } from 'expo-router';
 import { useState } from 'react';
-import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Linking, Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Tappable } from '@/components/tappable';
 import { type Palette, Spacing } from '@/constants/theme';
+import { ACTIVE_DONATION_LINKS } from '@/data/donate';
 import { useBibleVersion } from '@/lib/bible-versions';
 import { THEME_MODES, useColors, useStyles, useThemeMode } from '@/lib/theme';
 
-/** Menu button for the top-right of the home screen: appearance, Bible version, About & Credits. */
+/** Menu button for the top-right of the home screen: appearance, Bible version, About & Credits, Donate. */
 export function HomeMenu() {
   const Colors = useColors();
   const styles = useStyles(makeStyles);
@@ -70,6 +71,30 @@ export function HomeMenu() {
               <Text style={styles.rowText}>About & Credits</Text>
               <MaterialCommunityIcons name="chevron-right" size={20} color={Colors.textMuted} />
             </Tappable>
+
+            {ACTIVE_DONATION_LINKS.length ? (
+              <>
+                <View style={styles.divider} />
+                <Text style={styles.sectionTitle}>Donate</Text>
+                <Text style={styles.hint}>This app is free, with no ads. Gifts help cover the costs of building it.</Text>
+                {ACTIVE_DONATION_LINKS.map((link) => (
+                  <Tappable
+                    key={link.name}
+                    onPress={() => {
+                      setOpen(false);
+                      Linking.openURL(link.url);
+                    }}
+                    accessibilityRole="link"
+                    accessibilityLabel={`Donate with ${link.name}`}
+                    accessibilityHint="Opens in your browser"
+                    style={styles.row}>
+                    <MaterialCommunityIcons name={link.icon} size={20} color={Colors.textSecondary} />
+                    <Text style={styles.rowText}>{link.name}</Text>
+                    <MaterialCommunityIcons name="open-in-new" size={18} color={Colors.textMuted} />
+                  </Tappable>
+                ))}
+              </>
+            ) : null}
           </Pressable>
         </Pressable>
       </Modal>
