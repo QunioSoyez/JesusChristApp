@@ -213,7 +213,10 @@ export async function geocode(place: string): Promise<(LatLon & { label: string 
   if (__DEV__) console.log('[geocode] query:', JSON.stringify(place), '| worker:', WORKER_URL ?? '(not set)');
   if (WORKER_URL) {
     try {
-      const url = `${WORKER_URL}/geocode?q=${encodeURIComponent(place.trim())}`;
+      // `v` changes the URL whenever the worker's lookup logic changes, so phones don't reuse an
+      // answer they saved from an older worker (worker responses may be kept for up to a day).
+      // v=2: older answers for some US ZIPs pointed to Lithuania.
+      const url = `${WORKER_URL}/geocode?v=2&q=${encodeURIComponent(place.trim())}`;
       const res = await fetchWithTimeout(url, { headers: { Accept: 'application/json' } }, 15000);
       if (res.ok) {
         const data = (await res.json()) as { lat?: number; lon?: number; label?: string } | null;
