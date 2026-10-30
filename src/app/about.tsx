@@ -8,6 +8,8 @@ import { Tappable } from '@/components/tappable';
 import { MaxContentWidth, Spacing, type Palette } from '@/constants/theme';
 import { useStyles } from '@/lib/theme';
 import { APP_REPO_URL, COMPONENTS, type Credit, DATA_SOURCES } from '@/data/credits';
+import { HISTORY } from '@/data/history';
+import { HISTORY_IMAGES } from '@/data/history-images';
 import licenses from '@/data/licenses.json';
 
 /** Full license text for an npm package, from the generated licenses.json. */
@@ -37,6 +39,7 @@ export default function AboutScreen() {
 
       <Section title="Data sources" items={DATA_SOURCES} />
       <Section title="Built with" items={COMPONENTS} />
+      <PhotoCredits />
 
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>Open-source licenses</Text>
@@ -46,6 +49,31 @@ export default function AboutScreen() {
         </Tappable>
       </View>
     </ScrollView>
+  );
+}
+
+/** Credits for every photo on the History screens (from src/data/history-images.ts). */
+function PhotoCredits() {
+  const styles = useStyles(makeStyles);
+  const photos = HISTORY.flatMap((e) => {
+    const img = HISTORY_IMAGES[e.id];
+    return img ? [{ title: e.title, img }] : [];
+  });
+  if (!photos.length) return null;
+  return (
+    <View style={styles.section}>
+      <Text style={styles.sectionTitle}>Photos</Text>
+      <View style={styles.card}>
+        <Text style={styles.use}>
+          Photos on the History screens are from Wikimedia Commons. Tap a credit to see the original and its license.
+        </Text>
+        {photos.map(({ title, img }) => (
+          <Text key={title} style={styles.photoCredit} onPress={() => Linking.openURL(img.pageUrl)} accessibilityRole="link">
+            <Text style={styles.photoTitle}>{title}:</Text> {img.author} · {img.license}
+          </Text>
+        ))}
+      </View>
+    </View>
   );
 }
 
@@ -122,6 +150,8 @@ const makeStyles = (Colors: Palette) =>
   license: { color: Colors.textMuted, fontSize: 13 },
   actions: { flexDirection: 'row', gap: Spacing.four, marginTop: Spacing.one },
   link: { color: Colors.text, fontSize: 14, textDecorationLine: 'underline' },
+  photoCredit: { color: Colors.textSecondary, fontSize: 13, lineHeight: 19, marginTop: Spacing.one },
+  photoTitle: { color: Colors.text, fontWeight: '600' },
   licenseText: {
     color: Colors.textSecondary,
     fontSize: 12,
