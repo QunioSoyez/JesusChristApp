@@ -1,7 +1,7 @@
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { router, Stack, useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
-import { Image, Linking, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Image, Linking, Modal, Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Tappable } from '@/components/tappable';
@@ -21,6 +21,8 @@ export default function HistoryDetailScreen() {
   const entry = HISTORY.find((e) => e.id === id);
   const image = entry ? HISTORY_IMAGES[entry.id] : undefined;
   const [fullScreen, setFullScreen] = useState(false);
+  const [photoWidth, setPhotoWidth] = useState(0);
+  const windowHeight = useWindowDimensions().height;
 
   if (!entry) {
     return (
@@ -37,13 +39,24 @@ export default function HistoryDetailScreen() {
 
       {image ? (
         <View>
-          {/* Tall photos are cropped to a square here; tapping shows the whole photo. */}
           <Tappable
             onPress={() => setFullScreen(true)}
             accessibilityLabel={`Photo of ${entry.title}`}
             accessibilityHint="Opens the photo full screen"
-            style={[styles.photo, { aspectRatio: Math.max(image.width / image.height, 1) }]}>
-            <Image source={image.source} style={StyleSheet.absoluteFill} resizeMode="cover" accessibilityIgnoresInvertColors />
+            onLayout={(e) => setPhotoWidth(e.nativeEvent.layout.width)}
+            style={styles.photo}>
+            {/* The whole photo is shown, scaled to fit; tall photos are capped at 60% of the screen height. */}
+            {photoWidth > 0 ? (
+              <Image
+                source={image.source}
+                style={{
+                  width: photoWidth,
+                  height: Math.min(photoWidth * (image.height / image.width), windowHeight * 0.6),
+                }}
+                resizeMode="contain"
+                accessibilityIgnoresInvertColors
+              />
+            ) : null}
           </Tappable>
           <PhotoCredit image={image} />
           <FullScreenPhoto image={image} title={entry.title} visible={fullScreen} onClose={() => setFullScreen(false)} />
