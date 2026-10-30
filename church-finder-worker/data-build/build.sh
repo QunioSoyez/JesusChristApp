@@ -21,16 +21,29 @@ ALL="$WORK/places.geojsonseq"
 echo "Working in $WORK"
 curl -fsSL --retry 3 -A "$UA" "$INDEX_URL" -o "$WORK/index.json"
 
-# "<id> <pbf url>" for each US state/territory extract
+# "<id> <pbf url>" for each US state/territory extract. Geofabrik puts ISO 3166-2 codes (e.g.
+# "US-AL") on the smallest extract that contains each state, so those identify the state files.
+# Fallbacks: parent id ending in "us", or a ".../north-america/us/<name>-latest.osm.pbf" URL.
 node -e '
   const idx = JSON.parse(require("fs").readFileSync(process.argv[1], "utf8"));
-  const wanted = idx.features
-    .map((f) => f.properties)
-    .filter((p) => p.parent === "us" || p.id === "puerto-rico")
-    .filter((p) => p.urls && p.urls.pbf);
-  if (wanted.length < 50) { console.error(`Only ${wanted.length} US regions in Geofabrik index; aborting.`); process.exit(1); }
+  const props = idx.features.map((f) => f.properties);
+  const isUsState = (p) =>
+    (p["iso3166-2"] || []).some((c) => /^US-[A-Z]{2}$/.test(c)) ||
+    (p["iso3166-1:alpha2"] || []).includes("PR") ||
+    /(^|\/)us$/.test(p.parent || "") ||
+    /\/north-america\/us\/[a-z-]+-latest\.osm\.pbf$/.test((p.urls || {}).pbf || "");
+  const groupings = /(^|\/)us-(midwest|northeast|pacific|south|west)(-latest\.osm\.pbf)?$/; // multi-state bundles
+  const wanted = props.filter((p) => p.urls && p.urls.pbf && isUsState(p) && !groupings.test(p.id) && !groupings.test(p.urls.pbf));
+  if (wanted.length < 50) {
+    console.error(`Only ${wanted.length} US regions in Geofabrik index; aborting. Sample US-looking entries:`);
+    for (const p of props.filter((p) => /us/.test(p.id) || /\/us\//.test((p.urls || {}).pbf || "")).slice(0, 8)) {
+      console.error(JSON.stringify({ id: p.id, parent: p.parent, iso2: p["iso3166-2"], iso1: p["iso3166-1:alpha2"], pbf: (p.urls || {}).pbf }));
+    }
+    process.exit(1);
+  }
   for (const p of wanted) console.log(p.id, p.urls.pbf);
 ' "$WORK/index.json" > "$WORK/regions.txt"
+cut -d" " -f1 "$WORK/regions.txt" | tr "\n" " "; echo
 echo "$(wc -l < "$WORK/regions.txt") regions to process"
 
 : > "$ALL"
