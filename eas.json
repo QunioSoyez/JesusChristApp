@@ -1,0 +1,18 @@
+{
+  "build": {
+    "preview": {
+      "distribution": "internal",
+      "android": {
+        "buildType": "apk"
+      },
+      "env": {
+        "EXPO_PUBLIC_CHURCH_WORKER_URL": "https://church-finder.michaelbarnes0.workers.dev"
+      }
+    },
+    "production": {
+      "env": {
+        "EXPO_PUBLIC_CHURCH_WORKER_URL": "https://church-finder.michaelbarnes0.workers.dev"
+      }
+    }
+  }
+}
