@@ -301,25 +301,29 @@ function ChurchRow({
   const meta = [denomLabel, formatMiles(church.distanceMiles)].filter(Boolean).join(' · ');
 
   return (
-    <Tappable onPress={onPress} style={[styles.row, selected && styles.rowSelected]}>
-      <Text style={styles.name}>{church.name}</Text>
-      <Text style={styles.meta}>{meta}</Text>
-      {church.address ? <Text style={styles.detail}>Address: {church.address}</Text> : null}
-      {church.phone ? <Text style={styles.detail}>Phone: {church.phone}</Text> : null}
-      {church.serviceTimes ? (
-        <Text style={styles.detail}>Services: {church.serviceTimes}</Text>
-      ) : church.website ? (
-        <Text style={styles.detailMuted}>Check the website for service times</Text>
-      ) : church.phone ? (
-        <Text style={styles.detailMuted}>Call for service times</Text>
-      ) : null}
+    // The card is a View, not a button: on web a <button> can't hold the action <button>s.
+    // The info part shows the church on the map; the actions sit beside it.
+    <View style={[styles.row, selected && styles.rowSelected]}>
+      <Tappable onPress={onPress} accessibilityHint="Shows this church on the map" style={styles.rowInfo}>
+        <Text style={styles.name}>{church.name}</Text>
+        <Text style={styles.meta}>{meta}</Text>
+        {church.address ? <Text style={styles.detail}>Address: {church.address}</Text> : null}
+        {church.phone ? <Text style={styles.detail}>Phone: {church.phone}</Text> : null}
+        {church.serviceTimes ? (
+          <Text style={styles.detail}>Services: {church.serviceTimes}</Text>
+        ) : church.website ? (
+          <Text style={styles.detailMuted}>Check the website for service times</Text>
+        ) : church.phone ? (
+          <Text style={styles.detailMuted}>Call for service times</Text>
+        ) : null}
+      </Tappable>
 
       <View style={styles.actions}>
         <ActionButton label="Directions" primary onPress={onDirections} />
         {church.phone ? <ActionButton label="Call" onPress={() => Linking.openURL(`tel:${church.phone}`)} /> : null}
         {church.website ? <ActionButton label="Website" onPress={() => Linking.openURL(church.website!)} /> : null}
       </View>
-    </Tappable>
+    </View>
   );
 }
 
@@ -401,8 +405,8 @@ const makeStyles = (Colors: Palette) =>
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: Colors.border,
     borderRadius: 8,
-    gap: 3,
   },
+  rowInfo: { gap: 3 },
   rowSelected: { backgroundColor: Colors.highlight },
   name: { color: Colors.text, fontSize: 17, fontWeight: '600' },
   meta: { color: Colors.textSecondary, fontSize: 14 },
