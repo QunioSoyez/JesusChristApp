@@ -1,17 +1,31 @@
-# Monthly: rebuild the Church Finder data from OpenStreetMap and deploy the church-finder worker.
+# Builds the Church Finder data from OpenStreetMap and deploys the church-finder worker.
+#
+# Two modes (pick one under "Run workflow" in the repo's Actions tab):
+#   full       rebuild church data from OpenStreetMap, then deploy (~50 min). Runs monthly.
+#              Saves the data as a "church-data" artifact (kept 90 days) for code-only runs.
+#   code-only  deploy worker code changes using the data saved by the latest full run (~2 min).
 #
 # Needs two repository secrets (GitHub repo -> Settings -> Secrets and variables -> Actions):
 #   CLOUDFLARE_API_TOKEN   a Cloudflare API token from the "Edit Cloudflare Workers" template
 #   CLOUDFLARE_ACCOUNT_ID  your Cloudflare account ID
-#
-# Run it by hand any time from the repo's Actions tab ("Church data" -> "Run workflow").
-# This is also the way to deploy code changes to the worker, since data/ only exists here.
 name: Church data
 
 on:
   schedule:
-    - cron: '23 7 3 * *' # 07:23 UTC on the 3rd of each month
+    - cron: '23 7 3 * *' # 07:23 UTC on the 3rd of each month (always a full run)
   workflow_dispatch:
+    inputs:
+      mode:
+        description: 'full = rebuild church data (~50 min); code-only = deploy worker code with the last data (~2 min)'
+        type: choice
+        options:
+          - full
+          - code-only
+        default: full
+
+permissions:
+  contents: read
+  actions: read # lets code-only runs find and download the saved church-data artifact
 
 concurrency:
   group: church-data
@@ -21,6 +35,8 @@ jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
     timeout-minutes: 150
+    env:
+      MODE: ${{ github.event.inputs.mode || 'full' }}
     defaults:
       run:
         working-directory: church-finder-worker
@@ -33,19 +49,48 @@ jobs:
           cache: npm
           cache-dependency-path: church-finder-worker/package-lock.json
 
-      - name: Install osmium
-        run: sudo apt-get update && sudo apt-get install -y osmium-tool
-
       - name: Install worker dependencies
         run: npm ci
 
       - name: Typecheck worker
         run: npx tsc --noEmit
 
+      # ---- full: rebuild the data ----
+      - name: Install osmium
+        if: env.MODE == 'full'
+        run: sudo apt-get update && sudo apt-get install -y osmium-tool
+
       - name: Build church tiles from OpenStreetMap (all US states)
+        if: env.MODE == 'full'
         run: bash data-build/build.sh
 
-      - name: Deploy worker with new data
+      - name: Save church data for code-only deploys
+        if: env.MODE == 'full'
+        uses: actions/upload-artifact@v4
+        with:
+          name: church-data
+          path: church-finder-worker/data
+          retention-days: 90
+          if-no-files-found: error
+
+      # ---- code-only: reuse the data from the latest full run ----
+      - name: Reuse church data from the latest full run
+        if: env.MODE == 'code-only'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          run_id=$(gh api "repos/${{ github.repository }}/actions/artifacts?name=church-data&per_page=20" \
+            --jq '[.artifacts[] | select(.expired == false)][0].workflow_run.id // empty')
+          if [ -z "$run_id" ]; then
+            echo "::error::No saved church data found (it is kept 90 days). Run this workflow with mode 'full' instead."
+            exit 1
+          fi
+          echo "Using church data from run $run_id"
+          gh run download "$run_id" --name church-data --dir data --repo "${{ github.repository }}"
+          cat data/meta.json
+          test "$(ls data/tiles | wc -l)" -gt 100 || { echo "::error::Saved church data looks incomplete."; exit 1; }
+
+      - name: Deploy worker
         run: npx wrangler deploy
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}

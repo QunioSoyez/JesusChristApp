@@ -45,10 +45,17 @@ Then run it once by hand: repo -> Actions -> "Church data" -> Run workflow.
 
 ## Deploying
 
-Always deploy through the GitHub Actions workflow (Actions -> "Church data" -> Run workflow),
-including for code-only changes. The `data/` folder only exists inside that job, so a local
-`npx wrangler deploy` stops with an error about the missing assets directory. That's intentional,
-so a local deploy can't publish a worker with no churches.
+Always deploy through the GitHub Actions workflow: repo -> Actions -> "Church data" -> Run
+workflow, and pick a mode:
+
+- **full** (default, also runs monthly): rebuilds the church data from OpenStreetMap and deploys.
+  About 50 minutes. Saves the data as a `church-data` artifact, kept 90 days.
+- **code-only**: deploys worker code changes using the data saved by the latest full run.
+  About 2 minutes. If no saved data is left (over 90 days old), it stops and asks for a full run.
+
+The `data/` folder only exists inside that job, so a local `npx wrangler deploy` stops with an
+error about the missing assets directory. That's intentional, so a local deploy can't publish a
+worker with no churches.
 
 ## Building data locally (optional)
 
