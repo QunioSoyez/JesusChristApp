@@ -2,8 +2,9 @@ name = "church-finder"
 main = "src/index.ts"
 compatibility_date = "2025-01-01"
 
-# Usage (from jesus_app/church-finder-worker):
-#   npm install
-#   npx wrangler login      (once per machine)
-#   npx wrangler dev        (local test: http://localhost:8787/churches?lat=32.78&lon=-96.8&radiusMi=10)
-#   npx wrangler deploy     (then put the workers.dev URL in jesus_app/.env as EXPO_PUBLIC_CHURCH_WORKER_URL)
+# Church tiles built by data-build/build.sh (data/ is not in git). The monthly GitHub Actions job
+# (.github/workflows/church-data.yml) builds them and deploys. A local `wrangler deploy` without
+# a data/ folder fails on purpose, so it can't publish a worker with no churches.
+[assets]
+directory = "./data"
+binding = "ASSETS"

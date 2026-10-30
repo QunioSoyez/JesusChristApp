@@ -1,0 +1,52 @@
+# Monthly: rebuild the Church Finder data from OpenStreetMap and deploy the church-finder worker.
+#
+# Needs two repository secrets (GitHub repo -> Settings -> Secrets and variables -> Actions):
+#   CLOUDFLARE_API_TOKEN   a Cloudflare API token from the "Edit Cloudflare Workers" template
+#   CLOUDFLARE_ACCOUNT_ID  your Cloudflare account ID
+#
+# Run it by hand any time from the repo's Actions tab ("Church data" -> "Run workflow").
+# This is also the way to deploy code changes to the worker, since data/ only exists here.
+name: Church data
+
+on:
+  schedule:
+    - cron: '23 7 3 * *' # 07:23 UTC on the 3rd of each month
+  workflow_dispatch:
+
+concurrency:
+  group: church-data
+  cancel-in-progress: false
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 150
+    defaults:
+      run:
+        working-directory: church-finder-worker
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: church-finder-worker/package-lock.json
+
+      - name: Install osmium
+        run: sudo apt-get update && sudo apt-get install -y osmium-tool
+
+      - name: Install worker dependencies
+        run: npm ci
+
+      - name: Typecheck worker
+        run: npx tsc --noEmit
+
+      - name: Build church tiles from OpenStreetMap (all US states)
+        run: bash data-build/build.sh
+
+      - name: Deploy worker with new data
+        run: npx wrangler deploy
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}

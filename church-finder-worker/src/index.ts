@@ -1,25 +1,20 @@
-// Church Finder proxy for the Jesus Christ app.
-// Phone -> Worker -> Overpass/Nominatim (with server-side hedging, retries, and cache).
+// Church Finder worker for the Jesus Christ app.
 //
 // Endpoints:
 //   GET /churches?lat=..&lon=..&radiusMi=10   -> { churches: Church[], meta }
 //   GET /geocode?q=Dallas,TX                 -> { lat, lon, label } | null
 //
-// Why: public Overpass servers rate-limit or refuse mobile clients (HTTP 406/502 / timeouts).
-// The Worker adds a proper User-Agent, overlaps requests across 3 servers, treats Overpass
-// "200 OK but query failed" answers as failures, and caches by ~1km grid cell so users in one
-// area share one upstream query. Responses include a `meta` object (cache, upstream, failures)
-// for troubleshooting; the app ignores it.
+// Churches come from a prebuilt copy of OpenStreetMap data, not live Overpass queries (the public
+// Overpass servers proved too overloaded to use live). A monthly GitHub Actions job
+// (.github/workflows/church-data.yml) downloads the US extract from Geofabrik, keeps Christian
+// places of worship, writes them as 1-degree tiles to ./data/tiles/<lat>_<lon>.json, and deploys
+// them with this worker as static assets. See README.md.
+//
+// Place lookup (/geocode) still proxies Nominatim live, with a proper User-Agent and caching.
 
-const OVERPASS_URLS = [
-  'https://overpass-api.de/api/interpreter',
-  'https://maps.mail.ru/osm/tools/overpass/api/interpreter',
-  'https://overpass.private.coffee/api/interpreter',
-];
 const NOMINATIM_URL = 'https://nominatim.openstreetmap.org/search';
 const UA = 'JesusChristApp/1.0 (+church-finder-worker; contact: church-finder)';
 const MAX_RESULTS = 100;
-const METERS_PER_MILE = 1609.344;
 
 type LatLon = { lat: number; lon: number };
 type Church = LatLon & {
@@ -119,117 +114,47 @@ async function fetchWithTimeout(url: string, init: RequestInit, ms: number): Pro
   finally { clearTimeout(t); }
 }
 
+
 type Env = {
-  /** Optional comma-separated override of the Overpass servers (used for local testing). */
-  OVERPASS_URLS?: string;
+  /** Static assets from ./data (tiles + meta.json), bound in wrangler.toml. */
+  ASSETS: { fetch(input: Request | string): Promise<Response> };
 };
 
-type OverpassResult = { elements: any[]; host: string };
+/** One record in a tile file, as written by data-build/build-tiles.mjs. */
+type TileRecord = { type: 'node' | 'way' | 'relation'; id: number; lat: number; lon: number; tags: Record<string, string> };
+type DataMeta = { generated: string; source: string; churches: number; tiles: number };
 
-// Overpass sometimes answers HTTP 200 with an empty list plus a "remark" explaining that the
-// query failed (timeout, out of memory, too busy). That is a failure, not "no churches".
-function overpassRemarkError(data: any): string | null {
-  const remark = typeof data?.remark === 'string' ? data.remark : '';
-  return /error|timed out|timeout|out of memory|too busy|rate_limited/i.test(remark) ? remark.slice(0, 160) : null;
-}
-
-/**
- * Runs one Overpass query with overlapping requests: server 1 starts right away; if it hasn't
- * answered within HEDGE_MS (or fails sooner), server 2 starts, then server 3. The first valid
- * answer wins and the others are cancelled. Fails only when every server has failed.
- */
-const HEDGE_MS = 4000;
-const SERVER_TIMEOUT_MS = 18000; // whole search stays under ~26s, inside the app's wait
-async function queryOverpass(query: string, urls: string[], failures: string[]): Promise<OverpassResult> {
-  const winner = new AbortController();
-  return new Promise<OverpassResult>((resolve, reject) => {
-    let next = 0;
-    let running = 0;
-    let hedge: ReturnType<typeof setTimeout> | null = null;
-    const clearHedge = () => { if (hedge !== null) clearTimeout(hedge); hedge = null; };
-
-    const attempt = async (endpoint: string): Promise<OverpassResult> => {
-      const host = new URL(endpoint).host;
-      const c = new AbortController();
-      const timer = setTimeout(() => c.abort(), SERVER_TIMEOUT_MS);
-      const stop = () => c.abort();
-      winner.signal.addEventListener('abort', stop);
-      try {
-        const res = await fetch(`${endpoint}?data=${encodeURIComponent(query)}`, {
-          headers: { Accept: 'application/json', 'User-Agent': UA },
-          signal: c.signal,
-        });
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        const data = (await res.json()) as any;
-        const remark = overpassRemarkError(data);
-        if (remark) throw new Error(`server error: ${remark}`);
-        return { elements: Array.isArray(data?.elements) ? data.elements : [], host };
-      } catch (e) {
-        const msg = c.signal.aborted && !winner.signal.aborted
-          ? `no response after ${SERVER_TIMEOUT_MS / 1000}s`
-          : (e as Error)?.message ?? String(e);
-        if (!winner.signal.aborted) failures.push(`${host}: ${msg}`);
-        throw e;
-      } finally {
-        clearTimeout(timer);
-        winner.signal.removeEventListener('abort', stop);
-      }
-    };
-
-    const launch = () => {
-      clearHedge();
-      if (winner.signal.aborted || next >= urls.length) return;
-      const endpoint = urls[next++];
-      running++;
-      attempt(endpoint).then(
-        (result) => {
-          clearHedge();
-          winner.abort();
-          resolve(result);
-        },
-        () => {
-          running--;
-          if (next < urls.length) launch(); // a failure starts the next server right away
-          else if (running === 0) reject(new Error('all servers failed'));
-        },
-      );
-      if (next < urls.length) hedge = setTimeout(launch, HEDGE_MS);
-    };
-    launch();
-  });
-}
-
-// Churches are mapped either as points (nodes) or as building outlines (ways/relations); many US
-// churches are outlines only. Both searches run at the same time. A single combined query over a
-// dense city can time out, so they are separate. If one half fails the result is marked partial.
-async function searchUpstream(center: LatLon, radiusMeters: number, urls: string[]) {
-  const base = `["amenity"="place_of_worship"]["religion"="christian"]["name"](around:${radiusMeters},${center.lat},${center.lon})`;
-  const nodeFailures: string[] = [];
-  const outlineFailures: string[] = [];
-  const [nodes, outlines] = await Promise.allSettled([
-    queryOverpass(`[out:json][timeout:15];node${base};out tags;`, urls, nodeFailures),
-    queryOverpass(`[out:json][timeout:15];(way${base};relation${base};);out center tags;`, urls, outlineFailures),
-  ]);
-  const failures = [...nodeFailures.map((f) => `points ${f}`), ...outlineFailures.map((f) => `outlines ${f}`)];
-  if (nodes.status === 'rejected' && outlines.status === 'rejected') {
-    throw new Error(`All Overpass servers failed: ${failures.join('; ')}`);
+/** Tile keys (south-west corner, whole degrees) covering a circle around `center`. */
+function tilesForCircle(center: LatLon, radiusMi: number): string[] {
+  const dLat = radiusMi / 69.0;
+  const dLon = radiusMi / (69.172 * Math.max(Math.cos((center.lat * Math.PI) / 180), 0.01));
+  const keys: string[] = [];
+  for (let la = Math.floor(center.lat - dLat); la <= Math.floor(center.lat + dLat); la++) {
+    for (let lo = Math.floor(center.lon - dLon); lo <= Math.floor(center.lon + dLon); lo++) keys.push(`${la}_${lo}`);
   }
-  const elements = [
-    ...(nodes.status === 'fulfilled' ? nodes.value.elements : []),
-    ...(outlines.status === 'fulfilled' ? outlines.value.elements : []),
-  ];
-  const upstream = [
-    `points=${nodes.status === 'fulfilled' ? nodes.value.host : 'failed'}`,
-    `outlines=${outlines.status === 'fulfilled' ? outlines.value.host : 'failed'}`,
-  ].join(' ');
-  return { elements, partial: nodes.status === 'rejected' || outlines.status === 'rejected', upstream, failures };
+  return keys;
 }
 
-/** Converts raw Overpass elements to deduplicated churches (distance is filled in per request). */
-function normalizeChurches(elements: any[], center: LatLon): Church[] {
+async function readTile(env: Env, key: string): Promise<TileRecord[]> {
+  const res = await env.ASSETS.fetch(`https://assets.local/tiles/${key}.json`);
+  if (res.status === 404) return []; // no churches mapped in that square (or it's ocean)
+  if (!res.ok) throw new Error(`tile ${key}: HTTP ${res.status}`);
+  return (await res.json()) as TileRecord[];
+}
+
+let metaPromise: Promise<DataMeta | null> | null = null;
+function readMeta(env: Env): Promise<DataMeta | null> {
+  metaPromise ??= env.ASSETS.fetch('https://assets.local/meta.json')
+    .then((r) => (r.ok ? (r.json() as Promise<DataMeta>) : null))
+    .catch(() => null);
+  return metaPromise;
+}
+
+/** Converts tile records to deduplicated churches (a church can be mapped as a point and a building). */
+function normalizeChurches(records: TileRecord[], center: LatLon): Church[] {
   const seen: Church[] = [];
-  for (const el of elements) {
-    const c = toChurch(el, center);
+  for (const rec of records) {
+    const c = toChurch(rec, center);
     if (!c) continue;
     const dup = seen.find((s) => s.name === c.name && milesBetween(s, c) < 0.1);
     if (dup) {
@@ -239,15 +164,6 @@ function normalizeChurches(elements: any[], center: LatLon): Church[] {
     } else seen.push(c);
   }
   return seen;
-}
-
-/** Distances from this user's exact position, within the radius, nearest first. */
-function forUser(churches: Church[], user: LatLon, radiusMi: number): Church[] {
-  return churches
-    .map((c) => ({ ...c, distanceMiles: milesBetween(user, c) }))
-    .filter((c) => c.distanceMiles <= radiusMi)
-    .sort((a, b) => a.distanceMiles - b.distanceMiles)
-    .slice(0, MAX_RESULTS);
 }
 
 const cors = {
@@ -265,14 +181,6 @@ function fromCache(cached: Response, extra: Record<string, string>): Response {
   return new Response(cached.body, { status: cached.status, headers });
 }
 
-// Cache entries for /churches hold the normalized church list for a ~1km grid cell. "fresh" is
-// used for 24h; "backup" is kept 7 days and only served when every Overpass server is failing.
-// Bump CACHE_VERSION to discard everything cached by an older version of this worker.
-const CACHE_VERSION = 'v3';
-const FRESH_TTL = 86400;
-const BACKUP_TTL = 604800;
-const EMPTY_OR_PARTIAL_TTL = 600; // retry sooner when a result may be incomplete
-
 export default {
   async fetch(req: Request, env: Env, ctx: { waitUntil(p: Promise<unknown>): void }): Promise<Response> {
     if (req.method === 'OPTIONS') return new Response(null, { headers: cors });
@@ -281,55 +189,24 @@ export default {
     if (url.pathname === '/churches') {
       const lat = Number(url.searchParams.get('lat')), lon = Number(url.searchParams.get('lon'));
       const radiusMi = Math.min(Math.max(Number(url.searchParams.get('radiusMi')) || 10, 1), 50);
-      if (!Number.isFinite(lat) || !Number.isFinite(lon)) return json({ error: 'lat/lon required' }, 400);
-      const user = { lat, lon };
-
-      // Search around the grid cell's center with a 1-mile buffer, so the cached list covers
-      // every user in the cell; each user's distances are then computed from their own position.
-      const grid = { lat: Number(lat.toFixed(2)), lon: Number(lon.toFixed(2)) };
-      const cell = `lat=${grid.lat}&lon=${grid.lon}&r=${radiusMi}`;
-      const freshKey = new Request(`https://church-finder/${CACHE_VERSION}/churches?${cell}`);
-      const backupKey = new Request(`https://church-finder/${CACHE_VERSION}/churches-backup?${cell}`);
-      const cache = caches.default;
-
-      const cached = await cache.match(freshKey);
-      if (cached) {
-        const data = (await cached.json()) as { churches: Church[]; upstream?: string; partial?: boolean };
-        return json(
-          { churches: forUser(data.churches, user, radiusMi), meta: { cache: 'HIT', upstream: data.upstream, partial: !!data.partial } },
-          200,
-          { 'Cache-Control': 'public, max-age=300', 'X-Cache': 'HIT' },
-        );
+      if (!Number.isFinite(lat) || !Number.isFinite(lon) || Math.abs(lat) > 90 || Math.abs(lon) > 180) {
+        return json({ error: 'lat/lon required' }, 400);
       }
-
-      const urls = env.OVERPASS_URLS ? env.OVERPASS_URLS.split(',').map((s) => s.trim()).filter(Boolean) : OVERPASS_URLS;
+      const user = { lat, lon };
       try {
-        const radiusMeters = Math.round((radiusMi + 1) * METERS_PER_MILE);
-        const { elements, partial, upstream, failures } = await searchUpstream(grid, radiusMeters, urls);
-        const churches = normalizeChurches(elements, grid);
-        const body = JSON.stringify({ churches, upstream, partial });
-        const ttl = partial || churches.length === 0 ? EMPTY_OR_PARTIAL_TTL : FRESH_TTL;
-        const put = (key: Request, seconds: number) =>
-          cache.put(key, new Response(body, { headers: { 'Content-Type': 'application/json', 'Cache-Control': `public, s-maxage=${seconds}` } }));
-        ctx.waitUntil(put(freshKey, ttl));
-        if (!partial && churches.length > 0) ctx.waitUntil(put(backupKey, BACKUP_TTL));
+        const keys = tilesForCircle(user, radiusMi);
+        const [tiles, meta] = await Promise.all([Promise.all(keys.map((k) => readTile(env, k))), readMeta(env)]);
+        const churches = normalizeChurches(tiles.flat(), user)
+          .filter((c) => c.distanceMiles <= radiusMi)
+          .sort((a, b) => a.distanceMiles - b.distanceMiles)
+          .slice(0, MAX_RESULTS);
         return json(
-          { churches: forUser(churches, user, radiusMi), meta: { cache: 'MISS', upstream, partial, failures } },
+          { churches, meta: { source: 'OpenStreetMap extract', dataDate: meta?.generated ?? null, tiles: keys.length } },
           200,
-          { 'Cache-Control': 'public, max-age=300', 'X-Cache': 'MISS', 'X-Upstream': upstream },
+          { 'Cache-Control': 'public, max-age=3600' },
         );
       } catch (e) {
-        // Every server failed: fall back to the last good result for this area, if any.
-        const backup = await cache.match(backupKey);
-        if (backup) {
-          const data = (await backup.json()) as { churches: Church[]; upstream?: string };
-          return json(
-            { churches: forUser(data.churches, user, radiusMi), meta: { cache: 'STALE', upstream: data.upstream, error: String(e) } },
-            200,
-            { 'Cache-Control': 'no-store', 'X-Cache': 'STALE' },
-          );
-        }
-        return json({ error: 'Church directory is busy, try again in a minute.', detail: String(e) }, 502, { 'Cache-Control': 'no-store' });
+        return json({ error: 'Church search failed', detail: String(e) }, 500, { 'Cache-Control': 'no-store' });
       }
     }
 
