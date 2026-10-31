@@ -44,7 +44,8 @@ export function adjacentBook(slug: string, step: 1 | -1): BookInfo | undefined {
 }
 
 export function formatRef(slug: string, chapter: number, verse?: number): string {
-  const name = getBookInfo(slug)?.name ?? slug;
+  // A single psalm is "Psalm 23", not "Psalms 23".
+  const name = slug === 'psalms' ? 'Psalm' : (getBookInfo(slug)?.name ?? slug);
   return verse ? `${name} ${chapter}:${verse}` : `${name} ${chapter}`;
 }
 

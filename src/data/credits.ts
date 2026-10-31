@@ -63,6 +63,12 @@ SOFTWARE.`,
       'La Santa Biblia, Reina-Valera revision of 1909, is in the public domain. Text files prepared by the Scrollmapper Bible Databases project (MIT License; see the King James Version entry above for the full notice). The capitalized first word of each chapter (a printing convention) is shown in normal case.',
   },
   {
+    name: 'Book of Common Prayer (1928)',
+    use: 'Classic prayers in the Prayer Guide (the other prayers there are from the King James Version).',
+    license: 'Public domain (United States)',
+    url: 'https://episcopalnet.org/1928bcp/',
+  },
+  {
     name: 'OpenStreetMap',
     use: 'Church listings, map images, and city / ZIP code lookups in Find a Church.',
     license: 'Open Database License (ODbL)',

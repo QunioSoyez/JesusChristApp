@@ -2,6 +2,7 @@ import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { router } from 'expo-router';
 import { Linking, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
+import { Tappable } from '@/components/tappable';
 import { MaxContentWidth, Spacing, type Palette } from '@/constants/theme';
 import { useColors, useStyles } from '@/lib/theme';
 import { CRISIS, type Resource, SECTIONS } from '@/data/next-steps';
@@ -13,6 +14,8 @@ export default function NextStepsScreen() {
       <Text style={styles.intro}>
         Questions about Jesus, or wondering what comes next? These people and places are ready to help.
       </Text>
+
+      <PrayerGuideCard />
 
       {SECTIONS.map((section) => (
         <View key={section.title} style={styles.section}>
@@ -33,6 +36,29 @@ export default function NextStepsScreen() {
         About & Credits
       </Text>
     </ScrollView>
+  );
+}
+
+/** Link to the Prayer Guide, at the top of Next Steps. */
+function PrayerGuideCard() {
+  const styles = useStyles(makeStyles);
+  const Colors = useColors();
+  return (
+    <Tappable
+      onPress={() => router.push('/prayer')}
+      accessibilityLabel="Prayer Guide: prayers by topic"
+      style={styles.prayerCard}>
+      <View style={styles.prayerIcon}>
+        <MaterialCommunityIcons name="hands-pray" size={26} color={Colors.text} />
+      </View>
+      <View style={styles.prayerText}>
+        <Text style={styles.name}>Prayer Guide</Text>
+        <Text style={styles.description}>
+          Prayers for gratitude, forgiveness, guidance, difficult times and more
+        </Text>
+      </View>
+      <MaterialCommunityIcons name="chevron-right" size={22} color={Colors.textMuted} />
+    </Tappable>
   );
 }
 
@@ -111,6 +137,27 @@ const makeStyles = (Colors: Palette) =>
     letterSpacing: 1,
     textTransform: 'uppercase',
   },
+  prayerCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.three,
+    marginTop: Spacing.three,
+    backgroundColor: Colors.surface,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    borderRadius: 14,
+    padding: Spacing.three,
+  },
+  prayerIcon: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    borderWidth: 1.5,
+    borderColor: Colors.text,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  prayerText: { flex: 1, gap: 2 },
   card: {
     backgroundColor: Colors.surface,
     borderWidth: 1,
