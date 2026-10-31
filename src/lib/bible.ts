@@ -48,6 +48,11 @@ export function formatRef(slug: string, chapter: number, verse?: number): string
   return verse ? `${name} ${chapter}:${verse}` : `${name} ${chapter}`;
 }
 
+/** A passage like "John 2:1–11" (or "John 2:1" when there's no end verse). */
+export function formatPassage(ref: { b: string; c: number; v: number; to?: number }): string {
+  return `${formatRef(ref.b, ref.c, ref.v)}${ref.to ? `–${ref.to}` : ''}`;
+}
+
 export function randomQuote(exclude?: Quote): Quote {
   if (QUOTES.length < 2) return QUOTES[0];
   let q: Quote;

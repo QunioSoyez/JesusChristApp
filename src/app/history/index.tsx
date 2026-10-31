@@ -20,10 +20,13 @@ export default function HistoryScreen() {
       contentContainerStyle={styles.list}
       stickySectionHeadersEnabled={false}
       ListHeaderComponent={
-        <Text style={styles.intro}>
-          Places from the Gospels and finds from archaeology that connect to the life of Jesus. Tap one to read more and
-          open the Bible passages.
-        </Text>
+        <View>
+          <Text style={styles.intro}>
+            Places from the Gospels and finds from archaeology that connect to the life of Jesus. Tap one to read more and
+            open the Bible passages.
+          </Text>
+          <LifeOfJesusCard />
+        </View>
       }
       renderSectionHeader={({ section }) => (
         <View style={styles.sectionHeader}>
@@ -33,6 +36,27 @@ export default function HistoryScreen() {
       )}
       renderItem={({ item }) => <Row entry={item} />}
     />
+  );
+}
+
+/** Link to the Life of Jesus timeline, at the top of the list. */
+function LifeOfJesusCard() {
+  const styles = useStyles(makeStyles);
+  const Colors = useColors();
+  return (
+    <Tappable
+      onPress={() => router.push('/history/life-of-jesus')}
+      accessibilityLabel="The Life of Jesus: a timeline of the main events"
+      style={styles.card}>
+      <View style={styles.cardIcon}>
+        <MaterialCommunityIcons name="timeline-text-outline" size={26} color={Colors.text} />
+      </View>
+      <View style={styles.rowText}>
+        <Text style={styles.title}>The Life of Jesus</Text>
+        <Text style={styles.subtitle}>A timeline of the main events, from his birth to the Ascension</Text>
+      </View>
+      <MaterialCommunityIcons name="chevron-right" size={22} color={Colors.textMuted} />
+    </Tappable>
   );
 }
 
@@ -94,6 +118,26 @@ const makeStyles = (Colors: Palette) =>
     },
     thumb: { width: 72, height: 72, borderRadius: 10, backgroundColor: Colors.surface },
     thumbEmpty: { alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: Colors.border },
+    card: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: Spacing.three,
+      marginTop: Spacing.three,
+      padding: Spacing.three,
+      borderRadius: 14,
+      borderWidth: 1,
+      borderColor: Colors.border,
+      backgroundColor: Colors.surface,
+    },
+    cardIcon: {
+      width: 48,
+      height: 48,
+      borderRadius: 24,
+      borderWidth: 1.5,
+      borderColor: Colors.text,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
     rowText: { flex: 1, gap: 2 },
     title: { color: Colors.text, fontSize: 16, fontWeight: '600' },
     subtitle: { color: Colors.textSecondary, fontSize: 14 },
