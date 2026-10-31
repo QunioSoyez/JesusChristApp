@@ -23,7 +23,46 @@ const SOURCE_BASE = 'https://raw.githubusercontent.com/scrollmapper/bible_databa
 const VERSIONS = [
   { id: 'kjv', file: 'KJV.json' }, // King James Version (1769), public domain
   { id: 'bsb', file: 'BSB.json' }, // Berean Standard Bible, public domain since 2023
+  // Reina-Valera 1909 (Spanish), public domain. Its verse numbering follows Spanish Bibles, so a
+  // few KJV verse slots are empty (the app hides them for this version).
+  { id: 'rv1909', file: 'SpaRV.json', fixDropCaps: true },
 ];
+
+// Printed Reina-Valera Bibles set the first word of each chapter in capitals ("EN el principio",
+// "Y FUERON acabados", "Y JOSUÉ, hijo de Nun"). The source keeps those capitals; turn them back
+// into normal case. Only the first run of all-caps words in verse 1 of each chapter is changed
+// (Psalm titles come first, so the run can be mid-verse). A word starting a sentence gets a
+// capital; any other word is lowercased unless the text usually capitalizes it (a name like
+// Josué or Jehová), judged by how often it appears each way in the rest of the version.
+const CAPS_WORD = /^([¿¡(]*)([A-ZÁÉÍÓÚÑÜ]{2,})([,.;:!?)]*)$/;
+const capitalize = (w) => w[0].toUpperCase() + w.slice(1);
+
+function wordCounts(source) {
+  const counts = new Map();
+  for (const b of source.books)
+    for (const ch of b.chapters)
+      for (const v of ch.verses)
+        for (const raw of v.text.split(/\s+/)) {
+          const w = raw.replace(/^[¿¡("']+|[,.;:!?)"']+$/g, '');
+          if (w && w !== w.toUpperCase()) counts.set(w, (counts.get(w) ?? 0) + 1);
+        }
+  return counts;
+}
+
+function fixDropCaps(text, counts) {
+  const words = text.split(' ');
+  const start = words.findIndex((w) => CAPS_WORD.test(w));
+  if (start < 0) return text;
+  for (let i = start; i < words.length; i++) {
+    const m = words[i].match(CAPS_WORD);
+    if (!m) break;
+    const lower = m[2].toLowerCase();
+    const sentenceStart = i === 0 || /[.!?:]\)?$/.test(words[i - 1]);
+    const usuallyCapital = (counts.get(capitalize(lower)) ?? 0) > (counts.get(lower) ?? 0);
+    words[i] = m[1] + (sentenceStart || usuallyCapital ? capitalize(lower) : lower) + m[3];
+  }
+  return words.join(' ');
+}
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const dataDir = path.join(root, 'src', 'data');
@@ -94,7 +133,8 @@ fs.rmSync(bibleDir, { recursive: true, force: true });
 // Extra versions are written first (just the per-book text); the primary version below also
 // builds the book list, Jesus in Scripture, and quotes.
 const primary = sources[0];
-for (const { id, source } of sources.slice(1)) {
+for (const { id, source, fixDropCaps: dropCaps } of sources.slice(1)) {
+  const counts = dropCaps ? wordCounts(source) : undefined;
   const dir = path.join(bibleDir, id);
   fs.mkdirSync(dir, { recursive: true });
   source.books.forEach((b, i) => {
@@ -102,7 +142,9 @@ for (const { id, source } of sources.slice(1)) {
     if (b.name !== primaryBook.name) throw new Error(`${id}: book ${i + 1} is ${b.name}, expected ${primaryBook.name}`);
     const name = RENAME[b.name] ?? b.name;
     // Empty strings are kept: some translations omit verses (e.g. Matthew 17:21 in the BSB).
-    const chapters = b.chapters.map((ch) => ch.verses.map((v) => v.text.trim()));
+    const chapters = b.chapters.map((ch) =>
+      ch.verses.map((v, k) => (counts && k === 0 ? fixDropCaps(v.text.trim(), counts) : v.text.trim())),
+    );
     fs.writeFileSync(path.join(dir, `${slugify(name)}.json`), JSON.stringify({ name, chapters }));
   });
 }

@@ -15,7 +15,7 @@ import { Tappable } from '@/components/tappable';
 import { Fonts, MaxContentWidth, Spacing, type Palette } from '@/constants/theme';
 import { useStyles } from '@/lib/theme';
 import { adjacentBook, getBookInfo, getBookText } from '@/lib/bible';
-import { useBibleVersion } from '@/lib/bible-versions';
+import { bookName, type BibleVersion, useBibleVersion } from '@/lib/bible-versions';
 
 const CHIP_WIDTH = 44;
 const CHIP_GAP = 8;
@@ -47,7 +47,10 @@ export default function BookReaderScreen() {
   const [active, setActive] = useState(startChapter);
   const [stripWidth, setStripWidth] = useState(0);
 
-  const chapterLabel = info?.slug === 'psalms' ? 'Psalm' : 'Chapter';
+  const labels = version.chapterLabel ?? { chapter: 'Chapter', psalm: 'Psalm' };
+  const chapterLabel = info?.slug === 'psalms' ? labels.psalm : labels.chapter;
+  // Book names follow the selected version's language (Spanish for the RV1909, English otherwise).
+  const title = info ? bookName(info, version) : '';
 
   const scrollToChapter = useCallback((chapter: number, animated: boolean, extra = 0) => {
     const y = chapterY.current[chapter - 1];
@@ -119,7 +122,7 @@ export default function BookReaderScreen() {
     <View style={styles.screen}>
       <Stack.Screen
         options={{
-          title: info.name,
+          title,
           headerRight: () => <Text style={styles.versionTag}>{version.abbr}</Text>,
         }}
       />
@@ -156,7 +159,7 @@ export default function BookReaderScreen() {
         onScroll={onScroll}
         scrollEventThrottle={32}
         contentContainerStyle={styles.content}>
-        <Text style={styles.bookTitle}>{info.name}</Text>
+        <Text style={styles.bookTitle}>{title}</Text>
 
         {text.chapters.map((verses, i) => {
           const chapter = i + 1;
@@ -169,19 +172,19 @@ export default function BookReaderScreen() {
               {hl && hl >= 1 && hl <= verses.length ? (
                 // Split around the highlighted verse so it can be measured and scrolled to.
                 <>
-                  {hl > 1 ? <VerseBlock verses={verses} from={1} to={hl - 1} /> : null}
+                  {hl > 1 ? <VerseBlock verses={verses} from={1} to={hl - 1} version={version} /> : null}
                   <View
                     style={styles.highlight}
                     onLayout={(e) => {
                       verseY.current = e.nativeEvent.layout.y;
                       tryInitialJump();
                     }}>
-                    <VerseBlock verses={verses} from={hl} to={hl} />
+                    <VerseBlock verses={verses} from={hl} to={hl} version={version} />
                   </View>
-                  {hl < verses.length ? <VerseBlock verses={verses} from={hl + 1} to={verses.length} /> : null}
+                  {hl < verses.length ? <VerseBlock verses={verses} from={hl + 1} to={verses.length} version={version} /> : null}
                 </>
               ) : (
-                <VerseBlock verses={verses} from={1} to={verses.length} />
+                <VerseBlock verses={verses} from={1} to={verses.length} version={version} />
               )}
             </View>
           );
@@ -192,7 +195,7 @@ export default function BookReaderScreen() {
             <Tappable
               onPress={() => router.replace({ pathname: '/bible/[book]', params: { book: prev.slug } })}
               style={styles.navButton}>
-              <Text style={styles.navText}>‹ {prev.name}</Text>
+              <Text style={styles.navText}>‹ {bookName(prev, version)}</Text>
             </Tappable>
           ) : (
             <View />
@@ -201,7 +204,7 @@ export default function BookReaderScreen() {
             <Tappable
               onPress={() => router.replace({ pathname: '/bible/[book]', params: { book: next.slug } })}
               style={styles.navButton}>
-              <Text style={styles.navText}>{next.name} ›</Text>
+              <Text style={styles.navText}>{bookName(next, version)} ›</Text>
             </Tappable>
           ) : (
             <View />
@@ -212,16 +215,22 @@ export default function BookReaderScreen() {
   );
 }
 
-/** Verses `from`..`to` (1-based) as one text block: one verse per line, small verse numbers. */
-function VerseBlock({ verses, from, to }: { verses: string[]; from: number; to: number }) {
+/**
+ * Verses `from`..`to` (1-based) as one text block: one verse per line, small verse numbers.
+ * Empty verses are marked "Not included", or skipped for versions that set hideEmptyVerses.
+ */
+function VerseBlock({ verses, from, to, version }: { verses: string[]; from: number; to: number; version: BibleVersion }) {
   const styles = useStyles(makeStyles);
+  let shown = 0;
   return (
     <Text style={styles.verseText}>
       {verses.slice(from - 1, to).map((verse, k) => {
         const n = from + k;
+        if (!verse && version.hideEmptyVerses) return null;
+        const first = shown++ === 0;
         return (
           <Fragment key={n}>
-            {k > 0 ? '\n' : null}
+            {first ? null : '\n'}
             <Text style={styles.verseNum}>{n} </Text>
             {verse || <Text style={styles.omitted}>Not included in this translation.</Text>}
           </Fragment>

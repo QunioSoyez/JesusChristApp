@@ -55,6 +55,14 @@ SOFTWARE.`,
       'The Berean Bible texts were placed into the public domain on April 30, 2023 by their publisher. Text files prepared by the Scrollmapper Bible Databases project (MIT License; see the King James Version entry above for the full notice).',
   },
   {
+    name: 'Reina-Valera 1909 (RV1909)',
+    use: 'Spanish Bible text when the RV1909 version is selected.',
+    license: 'Public domain',
+    url: 'https://github.com/scrollmapper/bible_databases',
+    notice:
+      'La Santa Biblia, Reina-Valera revision of 1909, is in the public domain. Text files prepared by the Scrollmapper Bible Databases project (MIT License; see the King James Version entry above for the full notice). The capitalized first word of each chapter (a printing convention) is shown in normal case.',
+  },
+  {
     name: 'OpenStreetMap',
     use: 'Church listings, map images, and city / ZIP code lookups in Find a Church.',
     license: 'Open Database License (ODbL)',

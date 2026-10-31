@@ -10,6 +10,7 @@ work of others, credited below. The same information is shown in the app under
 | --- | --- | --- |
 | [King James Version (1769)](https://github.com/scrollmapper/bible_databases), prepared by the Scrollmapper Bible Databases project | Bible text (KJV), Jesus in Scripture, home screen verses (`src/data/bible/kjv`, `references.json`, `quotes.json`, built by `scripts/build-data.mjs`) | KJV text: public domain in the United States. Scrollmapper's files: MIT (notice below) |
 | [Berean Standard Bible (BSB)](https://berean.bible/licensing.htm), files prepared by the Scrollmapper Bible Databases project | Bible text when BSB is selected (`src/data/bible/bsb`, built by `scripts/build-data.mjs`) | Public domain since April 30, 2023. Scrollmapper's files: MIT (notice below) |
+| [Reina-Valera 1909 (RV1909)](https://github.com/scrollmapper/bible_databases), files prepared by the Scrollmapper Bible Databases project | Spanish Bible text when RV1909 is selected (`src/data/bible/rv1909`, built by `scripts/build-data.mjs`) | Public domain. Scrollmapper's files: MIT (notice below) |
 | [OpenStreetMap](https://www.openstreetmap.org/copyright) | Church listings, map images, city/ZIP lookups | [Open Database License (ODbL)](https://opendatacommons.org/licenses/odbl/1-0/) |
 | [Geofabrik](https://download.geofabrik.de) | Monthly OpenStreetMap downloads for the church listings | OpenStreetMap data (ODbL) |
 | [Nominatim](https://nominatim.org) | City / ZIP code to map location | OpenStreetMap data (ODbL) |

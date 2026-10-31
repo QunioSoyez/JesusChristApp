@@ -5,7 +5,7 @@ import { Tappable } from '@/components/tappable';
 import { MaxContentWidth, Spacing, type Palette } from '@/constants/theme';
 import { useStyles } from '@/lib/theme';
 import { BOOKS } from '@/lib/bible';
-import { useBibleVersion } from '@/lib/bible-versions';
+import { bookName, useBibleVersion } from '@/lib/bible-versions';
 
 const SECTIONS = [
   { title: 'New Testament', data: BOOKS.filter((b) => b.testament === 'NT') },
@@ -45,7 +45,7 @@ export default function BooksScreen() {
         <Tappable
           onPress={() => router.push({ pathname: '/bible/[book]', params: { book: item.slug } })}
           style={styles.row}>
-          <Text style={styles.name}>{item.name}</Text>
+          <Text style={styles.name}>{bookName(item, version)}</Text>
           <Text style={styles.meta}>{item.chapters} ch.</Text>
         </Tappable>
       )}

@@ -8,7 +8,7 @@ Built with [Expo](https://expo.dev) (React Native + TypeScript) so one codebase 
 
 - **Home**: black screen, white cross, and a random uplifting verse (tap for another)
 - **Jesus in Scripture**: 1,375 New Testament verses that mention Jesus by name or title, searchable and filterable by title (Jesus/Christ, Son of man, Son of God, Lamb of God, the Word, the "I am" sayings, and more)
-- **Read the Bible**: choose a version (KJV or BSB; the choice is remembered), then read whole books with a chapter strip; tapping a reference opens the book at that verse, highlighted
+- **Read the Bible**: choose a version (KJV, BSB, or the Spanish Reina-Valera 1909; the choice is remembered), then read whole books with a chapter strip; tapping a reference opens the book at that verse, highlighted
 - **Find a Church**: churches within 5, 10 (default) or 25 miles, shown on a map and in a list with distance, denomination, address and service times when known, plus Directions, Call and Website buttons. Uses your location (asked once, never stored) or a city/ZIP you type.
 - Works offline: the Bible text is bundled with the app (Find a Church needs a connection)
 
@@ -51,6 +51,7 @@ Bible text, from [scrollmapper/bible_databases](https://github.com/scrollmapper/
 
 - **KJV**: King James Version (1769), public domain. Also used for Jesus in Scripture and the home-screen verses.
 - **BSB**: Berean Standard Bible, public domain since April 30, 2023 ([berean.bible](https://berean.bible/licensing.htm)).
+- **RV1909**: Reina-Valera 1909 (Spanish), public domain. Book names show in Spanish when it's selected.
 
 To add another public-domain version, add it to `VERSIONS` in `scripts/build-data.mjs`, run
 `npm run build-data`, then add it to `src/lib/bible-versions.ts` and the credits.
