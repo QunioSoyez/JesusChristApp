@@ -1,4 +1,7 @@
 {
+  "cli": {
+    "appVersionSource": "remote"
+  },
   "build": {
     "preview": {
       "distribution": "internal",
@@ -12,7 +15,8 @@
     "production": {
       "env": {
         "EXPO_PUBLIC_CHURCH_WORKER_URL": "https://church-finder.michaelbarnes0.workers.dev"
-      }
+      },
+      "autoIncrement": true
     }
   }
 }
