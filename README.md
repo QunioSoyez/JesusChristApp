@@ -2,6 +2,13 @@
 
 An app for everyone to learn more about Jesus Christ. Free, open source, no login.
 
+A project of **Mission CTRL** ([missionctrl.team](https://missionctrl.team)).
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="assets/images/mission-ctrl-logo-white.png">
+  <img src="assets/images/mission-ctrl-logo-black.png" alt="Mission CTRL" width="200">
+</picture>
+
 Built with [Expo](https://expo.dev) (React Native + TypeScript) so one codebase runs on iOS, Android and the web.
 
 ## What's in the MVP

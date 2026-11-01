@@ -1,12 +1,12 @@
 import Constants from 'expo-constants';
 import { router } from 'expo-router';
 import { useState } from 'react';
-import { Linking, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Image, Linking, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { Cross } from '@/components/cross';
 import { Tappable } from '@/components/tappable';
 import { MaxContentWidth, Spacing, type Palette } from '@/constants/theme';
-import { useStyles } from '@/lib/theme';
+import { useColors, useStyles } from '@/lib/theme';
 import { APP_REPO_URL, COMPONENTS, type Credit, DATA_SOURCES } from '@/data/credits';
 import { HISTORY } from '@/data/history';
 import { HISTORY_IMAGES } from '@/data/history-images';
@@ -20,6 +20,7 @@ function packageLicenseText(name: string): string | undefined {
 
 export default function AboutScreen() {
   const styles = useStyles(makeStyles);
+  const Colors = useColors();
   const version = Constants.expoConfig?.version ?? '';
 
   return (
@@ -35,6 +36,21 @@ export default function AboutScreen() {
         <Text style={styles.link} onPress={() => Linking.openURL(APP_REPO_URL)}>
           Source code on GitHub (MIT License)
         </Text>
+      </View>
+
+      {/* Publisher: the Mission CTRL logo, black on light backgrounds and white on dark. */}
+      <View style={styles.publisher}>
+        <Text style={styles.publisherLabel}>A Mission CTRL project</Text>
+        <Image
+          source={
+            Colors.scheme === 'dark'
+              ? require('../../assets/images/mission-ctrl-logo-white.png')
+              : require('../../assets/images/mission-ctrl-logo-black.png')
+          }
+          style={styles.publisherLogo}
+          resizeMode="contain"
+          accessibilityLabel="Mission CTRL logo"
+        />
       </View>
 
       <Section title="Data sources" items={DATA_SOURCES} />
@@ -130,6 +146,10 @@ const makeStyles = (Colors: Palette) =>
   version: { color: Colors.textMuted, fontSize: 13 },
   intro: { color: Colors.textSecondary, fontSize: 15, lineHeight: 22, textAlign: 'center' },
   section: { marginTop: Spacing.four, gap: Spacing.two },
+  publisher: { alignItems: 'center', gap: Spacing.two, marginTop: Spacing.four },
+  publisherLabel: { color: Colors.textMuted, fontSize: 13, letterSpacing: 0.5 },
+  // The logo file is 720×467; keep that shape.
+  publisherLogo: { width: 180, height: 117 },
   sectionTitle: {
     color: Colors.textMuted,
     fontSize: 13,
