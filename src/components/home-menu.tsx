@@ -1,20 +1,22 @@
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { type Href, router } from 'expo-router';
 import { useState } from 'react';
-import { Linking, Modal, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Linking, Modal, Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Tappable } from '@/components/tappable';
 import { type Palette, Spacing } from '@/constants/theme';
 import { ACTIVE_DONATION_LINKS } from '@/data/donate';
+import { FEEDBACK_EMAIL, FEEDBACK_KINDS, FEEDBACK_NOTE, openFeedbackEmail } from '@/lib/feedback';
 import { useBibleVersion } from '@/lib/bible-versions';
 import { THEME_MODES, useColors, useStyles, useThemeMode } from '@/lib/theme';
 
-/** Menu button for the top-right of the home screen: appearance, Bible version, About & Credits, Donate. */
+/** Menu button for the top-right of the home screen: appearance, Bible version, About & Credits, Feedback, Donate. */
 export function HomeMenu() {
   const Colors = useColors();
   const styles = useStyles(makeStyles);
   const insets = useSafeAreaInsets();
+  const windowHeight = useWindowDimensions().height;
   const [open, setOpen] = useState(false);
   const { mode, setMode } = useThemeMode();
   const { version } = useBibleVersion();
@@ -38,63 +40,97 @@ export function HomeMenu() {
       <Modal visible={open} transparent animationType="fade" onRequestClose={() => setOpen(false)}>
         <Pressable style={styles.backdrop} onPress={() => setOpen(false)} accessibilityLabel="Close menu">
           {/* Inner Pressable stops taps on the panel from closing it. */}
-          <Pressable style={[styles.panel, { top: insets.top + 52 }]} onPress={() => {}} accessibilityViewIsModal>
-            <Text style={styles.sectionTitle}>Appearance</Text>
-            <View style={styles.segment} accessibilityRole="radiogroup">
-              {THEME_MODES.map((m) => {
-                const selected = m.id === mode;
-                return (
-                  <Pressable
-                    key={m.id}
-                    onPress={() => setMode(m.id)}
-                    accessibilityRole="radio"
-                    accessibilityState={{ checked: selected }}
-                    accessibilityLabel={`${m.label} appearance`}
-                    style={[styles.segmentItem, selected && styles.segmentItemSelected]}>
-                    <Text style={[styles.segmentText, selected && styles.segmentTextSelected]}>{m.label}</Text>
-                  </Pressable>
-                );
-              })}
-            </View>
-            {mode === 'system' ? <Text style={styles.hint}>Follows your phone&apos;s light or dark setting.</Text> : null}
+          <Pressable
+            style={[styles.panel, { top: insets.top + 52, maxHeight: windowHeight - insets.top - insets.bottom - 68 }]}
+            onPress={() => {}}
+            accessibilityViewIsModal>
+            {/* Scrolls on short screens so every item stays reachable. */}
+            <ScrollView contentContainerStyle={styles.panelContent} showsVerticalScrollIndicator={false}>
+              <Text style={styles.sectionTitle}>Appearance</Text>
+              <View style={styles.segment} accessibilityRole="radiogroup">
+                {THEME_MODES.map((m) => {
+                  const selected = m.id === mode;
+                  return (
+                    <Pressable
+                      key={m.id}
+                      onPress={() => setMode(m.id)}
+                      accessibilityRole="radio"
+                      accessibilityState={{ checked: selected }}
+                      accessibilityLabel={`${m.label} appearance`}
+                      style={[styles.segmentItem, selected && styles.segmentItemSelected]}>
+                      <Text style={[styles.segmentText, selected && styles.segmentTextSelected]}>{m.label}</Text>
+                    </Pressable>
+                  );
+                })}
+              </View>
+              {mode === 'system' ? (
+                <Text style={styles.hint}>Follows your phone&apos;s light or dark setting.</Text>
+              ) : null}
 
-            <View style={styles.divider} />
+              <View style={styles.divider} />
 
-            <Tappable onPress={() => go('/bible/versions')} style={styles.row} accessibilityLabel={`Bible version: ${version.name}. Change`}>
-              <MaterialCommunityIcons name="book-open-variant" size={20} color={Colors.textSecondary} />
-              <Text style={styles.rowText}>Bible version</Text>
-              <Text style={styles.rowValue}>{version.abbr}</Text>
-              <MaterialCommunityIcons name="chevron-right" size={20} color={Colors.textMuted} />
-            </Tappable>
-            <Tappable onPress={() => go('/about')} style={styles.row}>
-              <MaterialCommunityIcons name="information-outline" size={20} color={Colors.textSecondary} />
-              <Text style={styles.rowText}>About & Credits</Text>
-              <MaterialCommunityIcons name="chevron-right" size={20} color={Colors.textMuted} />
-            </Tappable>
+              <Tappable
+                onPress={() => go('/bible/versions')}
+                style={styles.row}
+                accessibilityLabel={`Bible version: ${version.name}. Change`}>
+                <MaterialCommunityIcons name="book-open-variant" size={20} color={Colors.textSecondary} />
+                <Text style={styles.rowText}>Bible version</Text>
+                <Text style={styles.rowValue}>{version.abbr}</Text>
+                <MaterialCommunityIcons name="chevron-right" size={20} color={Colors.textMuted} />
+              </Tappable>
+              <Tappable onPress={() => go('/about')} style={styles.row}>
+                <MaterialCommunityIcons name="information-outline" size={20} color={Colors.textSecondary} />
+                <Text style={styles.rowText}>About & Credits</Text>
+                <MaterialCommunityIcons name="chevron-right" size={20} color={Colors.textMuted} />
+              </Tappable>
 
-            {ACTIVE_DONATION_LINKS.length ? (
-              <>
-                <View style={styles.divider} />
-                <Text style={styles.sectionTitle}>Donate</Text>
-                <Text style={styles.hint}>This app is free, with no ads. Gifts help cover the costs of building it.</Text>
-                {ACTIVE_DONATION_LINKS.map((link) => (
-                  <Tappable
-                    key={link.name}
-                    onPress={() => {
-                      setOpen(false);
-                      Linking.openURL(link.url);
-                    }}
-                    accessibilityRole="link"
-                    accessibilityLabel={`Donate with ${link.name}`}
-                    accessibilityHint="Opens in your browser"
-                    style={styles.row}>
-                    <MaterialCommunityIcons name={link.icon} size={20} color={Colors.textSecondary} />
-                    <Text style={styles.rowText}>{link.name}</Text>
-                    <MaterialCommunityIcons name="open-in-new" size={18} color={Colors.textMuted} />
-                  </Tappable>
-                ))}
-              </>
-            ) : null}
+              <View style={styles.divider} />
+              <Text style={styles.sectionTitle}>Feedback</Text>
+              <Text style={styles.hint} selectable>
+                {FEEDBACK_NOTE}
+              </Text>
+              {FEEDBACK_KINDS.map((kind) => (
+                <Tappable
+                  key={kind.id}
+                  onPress={() => {
+                    setOpen(false);
+                    openFeedbackEmail(kind);
+                  }}
+                  accessibilityRole="link"
+                  accessibilityHint={`Opens your email app to write to ${FEEDBACK_EMAIL}`}
+                  style={styles.row}>
+                  <MaterialCommunityIcons name={kind.icon} size={20} color={Colors.textSecondary} />
+                  <Text style={styles.rowText}>{kind.label}</Text>
+                  <MaterialCommunityIcons name="open-in-new" size={18} color={Colors.textMuted} />
+                </Tappable>
+              ))}
+
+              {ACTIVE_DONATION_LINKS.length ? (
+                <>
+                  <View style={styles.divider} />
+                  <Text style={styles.sectionTitle}>Donate</Text>
+                  <Text style={styles.hint}>
+                    This app is free, with no ads. Gifts help cover the costs of building it.
+                  </Text>
+                  {ACTIVE_DONATION_LINKS.map((link) => (
+                    <Tappable
+                      key={link.name}
+                      onPress={() => {
+                        setOpen(false);
+                        Linking.openURL(link.url);
+                      }}
+                      accessibilityRole="link"
+                      accessibilityLabel={`Donate with ${link.name}`}
+                      accessibilityHint="Opens in your browser"
+                      style={styles.row}>
+                      <MaterialCommunityIcons name={link.icon} size={20} color={Colors.textSecondary} />
+                      <Text style={styles.rowText}>{link.name}</Text>
+                      <MaterialCommunityIcons name="open-in-new" size={18} color={Colors.textMuted} />
+                    </Tappable>
+                  ))}
+                </>
+              ) : null}
+            </ScrollView>
           </Pressable>
         </Pressable>
       </Modal>
@@ -121,9 +157,9 @@ const makeStyles = (Colors: Palette) =>
       borderWidth: 1,
       borderColor: Colors.border,
       borderRadius: 16,
-      padding: Spacing.three,
-      gap: Spacing.two,
+      overflow: 'hidden',
     },
+    panelContent: { padding: Spacing.three, gap: Spacing.two },
     sectionTitle: {
       color: Colors.textMuted,
       fontSize: 12,

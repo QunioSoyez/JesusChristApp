@@ -4,6 +4,8 @@ An app for everyone to learn more about Jesus Christ. Free, open source, no logi
 
 A project of **Mission CTRL** ([missionctrl.team](https://missionctrl.team)).
 
+For questions, comments, feature requests, and bug reports, please contact [help@missionctrl.team](mailto:help@missionctrl.team).
+
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="assets/images/mission-ctrl-logo-white.png">
   <img src="assets/images/mission-ctrl-logo-black.png" alt="Mission CTRL" width="200">

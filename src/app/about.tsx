@@ -9,6 +9,7 @@ import { MaxContentWidth, Spacing, type Palette } from '@/constants/theme';
 import { useColors, useStyles } from '@/lib/theme';
 import { APP_REPO_URL, COMPONENTS, type Credit, DATA_SOURCES } from '@/data/credits';
 import { HISTORY } from '@/data/history';
+import { FEEDBACK_EMAIL } from '@/lib/feedback';
 import { HISTORY_IMAGES } from '@/data/history-images';
 import licenses from '@/data/licenses.json';
 
@@ -51,6 +52,18 @@ export default function AboutScreen() {
           resizeMode="contain"
           accessibilityLabel="Mission CTRL logo"
         />
+      </View>
+
+      <View style={styles.section}>
+        <Text style={styles.sectionTitle}>Contact</Text>
+        <View style={styles.card}>
+          <Text style={styles.use}>
+            For questions, comments, feature requests, and bug reports, please contact{' '}
+            <Text style={styles.link} onPress={() => Linking.openURL(`mailto:${FEEDBACK_EMAIL}`)} accessibilityRole="link">
+              {FEEDBACK_EMAIL}
+            </Text>
+          </Text>
+        </View>
       </View>
 
       <Section title="Data sources" items={DATA_SOURCES} />
