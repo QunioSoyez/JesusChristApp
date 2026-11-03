@@ -23,7 +23,7 @@ Built with [Expo](https://expo.dev) (React Native + TypeScript) so one codebase 
 
 ## Run it
 
-**Access Test Web App**:  https://jesus-christ-app.michaelbarnes0.workers.dev/
+**Access Test Web App**:  https://jesuschristapp.live/
 
 ```bash
 npm install
