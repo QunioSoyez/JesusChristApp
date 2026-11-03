@@ -12,10 +12,8 @@
     // file gets index.html instead of a 404.
     "not_found_handling": "single-page-application"
   },
-  // The app's web addresses. Listing them here keeps them attached on every deploy.
-  // (The jesus-christ-app.michaelbarnes0.workers.dev address keeps working too.)
-  "routes": [
-    { "pattern": "jesuschristapp.live", "custom_domain": true },
-    { "pattern": "www.jesuschristapp.live", "custom_domain": true }
-  ]
+  // The app's web address. Listing it here keeps it attached on every deploy.
+  // www.jesuschristapp.live is not served here: a Cloudflare redirect rule sends it to
+  // jesuschristapp.live so there's one site. (The …workers.dev address keeps working too.)
+  "routes": [{ "pattern": "jesuschristapp.live", "custom_domain": true }]
 }
