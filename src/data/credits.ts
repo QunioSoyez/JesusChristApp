@@ -16,6 +16,9 @@ export type Credit = {
 
 export const APP_REPO_URL = 'https://github.com/QunioSoyez/JesusChristApp';
 
+/** Mission CTRL, the nonprofit that publishes the app. */
+export const MISSION_CTRL_URL = 'https://missionctrl.team/';
+
 export const DATA_SOURCES: Credit[] = [
   {
     name: 'King James Version (1769)',

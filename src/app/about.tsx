@@ -7,7 +7,7 @@ import { Cross } from '@/components/cross';
 import { Tappable } from '@/components/tappable';
 import { MaxContentWidth, Spacing, type Palette } from '@/constants/theme';
 import { useColors, useStyles } from '@/lib/theme';
-import { APP_REPO_URL, COMPONENTS, type Credit, DATA_SOURCES } from '@/data/credits';
+import { APP_REPO_URL, COMPONENTS, type Credit, DATA_SOURCES, MISSION_CTRL_URL } from '@/data/credits';
 import { HISTORY } from '@/data/history';
 import { FEEDBACK_EMAIL, WEBSITE_URL } from '@/lib/feedback';
 import { HISTORY_IMAGES } from '@/data/history-images';
@@ -45,8 +45,12 @@ export default function AboutScreen() {
         </Text>
       </View>
 
-      {/* Publisher: the Mission CTRL logo, black on light backgrounds and white on dark. */}
-      <View style={styles.publisher}>
+      {/* Publisher: the Mission CTRL logo (black on light backgrounds, white on dark); opens missionctrl.team. */}
+      <Tappable
+        onPress={() => Linking.openURL(MISSION_CTRL_URL)}
+        accessibilityRole="link"
+        accessibilityLabel="A Mission CTRL project. Opens missionctrl.team"
+        style={styles.publisher}>
         <Text style={styles.publisherLabel}>A Mission CTRL project</Text>
         <Image
           source={
@@ -56,9 +60,9 @@ export default function AboutScreen() {
           }
           style={styles.publisherLogo}
           resizeMode="contain"
-          accessibilityLabel="Mission CTRL logo"
         />
-      </View>
+        <Text style={styles.link}>missionctrl.team</Text>
+      </Tappable>
 
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>Contact</Text>

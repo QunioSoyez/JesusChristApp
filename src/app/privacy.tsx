@@ -56,7 +56,7 @@ const POLICY: Block[] = [
     heading: 'Changes and contact',
     paragraphs: [
       'If this policy changes, the new version will appear here with a new date.',
-      `Questions? Contact Mission CTRL at ${FEEDBACK_EMAIL}.`,
+      `Questions? Contact Mission CTRL (missionctrl.team) at ${FEEDBACK_EMAIL}.`,
     ],
   },
 ];
