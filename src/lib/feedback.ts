@@ -9,6 +9,9 @@ import { Linking, Platform } from 'react-native';
 
 export const FEEDBACK_EMAIL = 'help@missionctrl.team';
 
+/** The app's website (the web version). */
+export const WEBSITE_URL = 'https://jesuschristapp.live';
+
 export const FEEDBACK_NOTE = `For questions, comments, feature requests, and bug reports, please contact ${FEEDBACK_EMAIL}`;
 
 export type FeedbackKind = {
@@ -48,7 +51,9 @@ export const FEEDBACK_KINDS: FeedbackKind[] = [
 function deviceSummary(): string {
   const parts = [`App version ${Constants.expoConfig?.version ?? 'unknown'}`];
   if (Platform.OS === 'web') {
-    parts.push('Web', typeof navigator !== 'undefined' ? navigator.userAgent : 'browser');
+    // Which address they were on (e.g. jesuschristapp.live) plus their browser.
+    const site = typeof location !== 'undefined' ? location.host : WEBSITE_URL.replace('https://', '');
+    parts.push(`Web (${site})`, typeof navigator !== 'undefined' ? navigator.userAgent : 'browser');
   } else {
     parts.push(`${Platform.OS === 'ios' ? 'iOS' : 'Android'} ${Device.osVersion ?? Platform.Version}`);
     if (Device.modelName) parts.push(Device.modelName);

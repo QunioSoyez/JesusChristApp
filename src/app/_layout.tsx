@@ -49,6 +49,7 @@ function ThemedStack() {
         <Stack.Screen name="next-steps" options={{ title: 'Next Steps' }} />
         <Stack.Screen name="about" options={{ title: 'About & Credits' }} />
         <Stack.Screen name="licenses" options={{ title: 'Open-source licenses' }} />
+        <Stack.Screen name="privacy" options={{ title: 'Privacy Policy' }} />
         <Stack.Screen name="history/index" options={{ title: 'History' }} />
         <Stack.Screen name="history/life-of-jesus" options={{ title: 'The Life of Jesus' }} />
         <Stack.Screen name="prayer/index" options={{ title: 'Prayer Guide' }} />

@@ -9,7 +9,7 @@ import { MaxContentWidth, Spacing, type Palette } from '@/constants/theme';
 import { useColors, useStyles } from '@/lib/theme';
 import { APP_REPO_URL, COMPONENTS, type Credit, DATA_SOURCES } from '@/data/credits';
 import { HISTORY } from '@/data/history';
-import { FEEDBACK_EMAIL } from '@/lib/feedback';
+import { FEEDBACK_EMAIL, WEBSITE_URL } from '@/lib/feedback';
 import { HISTORY_IMAGES } from '@/data/history-images';
 import licenses from '@/data/licenses.json';
 
@@ -33,6 +33,12 @@ export default function AboutScreen() {
         <Text style={styles.intro}>
           A free, open-source app to help anyone learn more about Jesus. No account, no ads, and
           nothing about you is stored.
+        </Text>
+        <Text style={styles.link} onPress={() => Linking.openURL(WEBSITE_URL)} accessibilityRole="link">
+          Website: {WEBSITE_URL.replace('https://', '')}
+        </Text>
+        <Text style={styles.link} onPress={() => router.push('/privacy')} accessibilityRole="link">
+          Privacy Policy
         </Text>
         <Text style={styles.link} onPress={() => Linking.openURL(APP_REPO_URL)}>
           Source code on GitHub (MIT License)

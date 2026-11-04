@@ -25,6 +25,8 @@ Built with [Expo](https://expo.dev) (React Native + TypeScript) so one codebase 
 
 **Access Test Web App**:  https://jesuschristapp.live/
 
+**Privacy Policy**: https://jesuschristapp.live/privacy
+
 ```bash
 npm install
 npx expo start
