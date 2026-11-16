@@ -214,7 +214,9 @@ export default {
           { 'Cache-Control': 'public, max-age=3600' },
         );
       } catch (e) {
-        return json({ error: 'Church search failed', detail: String(e) }, 500, { 'Cache-Control': 'no-store' });
+        // Log the real error to the Worker's logs; send callers only a generic message.
+        console.error('[churches] search failed:', e);
+        return json({ error: 'Church search failed' }, 500, { 'Cache-Control': 'no-store' });
       }
     }
 
