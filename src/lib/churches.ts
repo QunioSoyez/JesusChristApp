@@ -89,11 +89,11 @@ async function callWorker<T>(pathAndQuery: string, timeoutMs: number, what: stri
   try {
     res = await fetchWithTimeout(`${WORKER_URL}${pathAndQuery}`, timeoutMs);
   } catch (e) {
-    if (__DEV__) console.warn(`[church-finder] ${pathAndQuery} failed:`, (e as Error).message);
+    if (__DEV__) console.warn('[church-finder] request failed:', pathAndQuery, (e as Error).message);
     throw new SearchError(`Could not reach the church directory. Check your connection and try again.`);
   }
   if (!res.ok) {
-    if (__DEV__) console.warn(`[church-finder] ${pathAndQuery} -> HTTP ${res.status}:`, await res.text().catch(() => ''));
+    if (__DEV__) console.warn('[church-finder] HTTP error:', pathAndQuery, res.status, await res.text().catch(() => ''));
     throw new SearchError(`${what} failed (error ${res.status}). Please try again in a minute.`);
   }
   return (await res.json()) as T;

@@ -12,7 +12,7 @@ export function ChurchMap({ center, radiusMiles, churches, selectedId, onSelect,
   // A theme change reloads the iframe; wait for the new page's "ready" before sending data.
   useEffect(() => setReady(false), [html]);
 
-  const post = (msg: MapInbound) => frame.current?.contentWindow?.postMessage({ source: 'church-app', payload: msg }, '*');
+  const post = (msg: MapInbound) => frame.current?.contentWindow?.postMessage({ source: 'church-app', payload: msg }, window.location.origin);
 
   // Keep the latest callbacks without re-subscribing the listener.
   const handlers = useRef({ onSelect, onDirections });
