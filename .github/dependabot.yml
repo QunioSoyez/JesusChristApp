@@ -1,0 +1,49 @@
+# Dependabot version updates (Phase 1 step 3 of the AppSec pipeline).
+# Alerts + security updates are turned on by the QunioSoyez org security configuration.
+#
+# Root app (Expo): npm dependencies are managed by the Expo SDK, so there is NO npm entry for "/".
+# - Routine npm upgrades: `npx expo install --check` (and `npx expo install` when moving SDKs).
+# - Vulnerable npm packages still get security-update PRs from Settings. Check them with
+#   `npx expo install --check` before merging (merging = production deploy of the web app).
+# - leaflet (exact 1.9.4) is updated by hand.
+version: 2
+updates:
+  # GitHub Actions pins (SHA + "# vX.Y.Z" comment) in security.yml and church-data.yml
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "sunday"
+      time: "20:00"
+      timezone: "America/New_York"
+    # Wait 7 days after a release before proposing it
+    cooldown:
+      default-days: 7
+    groups:
+      github-actions:
+        patterns:
+          - "*"
+    commit-message:
+      prefix: "deps(actions)"
+
+  # church-finder worker (wrangler, typescript, workers-types). Not deployed on merge:
+  # after merging, run the "Church data" workflow in code-only mode to test + deploy it.
+  - package-ecosystem: "npm"
+    directory: "/church-finder-worker"
+    schedule:
+      interval: "weekly"
+      day: "sunday"
+      time: "20:00"
+      timezone: "America/New_York"
+    cooldown:
+      default-days: 7
+    groups:
+      # Minor + patch bumps in one PR; major bumps (e.g. typescript 5 -> 6) come as separate PRs
+      church-finder-worker:
+        patterns:
+          - "*"
+        update-types:
+          - "minor"
+          - "patch"
+    commit-message:
+      prefix: "deps(worker)"
