@@ -90,8 +90,10 @@ jobs:
           cat data/meta.json
           test "$(ls data/tiles | wc -l)" -gt 100 || { echo "::error::Saved church data looks incomplete."; exit 1; }
 
+      # --config pins the worker's own wrangler.toml. Without it, wrangler 4.158 picked up the
+      # app's root wrangler.jsonc (jesus-christ-app, assets ./dist) and failed (2026-11-16).
       - name: Deploy worker
-        run: npx wrangler deploy
+        run: npx wrangler deploy --config wrangler.toml
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
