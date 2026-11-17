@@ -105,12 +105,13 @@ async function fileInfo(file) {
   const plain = (html) =>
     String(html ?? '')
       .replace(/<[^>]*>/g, '')
-      .replace(/&amp;/g, '&')
       .replace(/&quot;/g, '"')
       .replace(/&#0?39;/g, "'")
       .replace(/&lt;/g, '<')
       .replace(/&gt;/g, '>')
       .replace(/&nbsp;/g, ' ')
+      // Decode &amp; last, so "&amp;lt;" stays "&lt;" instead of turning into "<".
+      .replace(/&amp;/g, '&')
       .replace(/\s+/g, ' ')
       .trim();
   // Some pages repeat the author in nested tags ("Unknown artistUnknown artist").
