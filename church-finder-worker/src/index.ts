@@ -253,7 +253,9 @@ export default {
         ctx.waitUntil(cache.put(cacheKey, response.clone()));
         return response;
       } catch (e) {
-        return json({ error: 'Place lookup failed', detail: String(e) }, 502);
+        // Log the real error to the Worker's logs; send callers only a generic message.
+        console.error('[geocode] lookup failed:', e);
+        return json({ error: 'Place lookup failed' }, 502);
       }
     }
 
